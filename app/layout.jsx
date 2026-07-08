@@ -1,0 +1,68 @@
+import { Cinzel, Inter, JetBrains_Mono } from "next/font/google";
+import "./globals.css";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
+import CookieConsent from "@/components/CookieConsent";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import { getLocale } from "@/lib/i18n";
+
+const display = Cinzel({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-display",
+});
+
+const body = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+});
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-mono",
+});
+
+export const metadata = {
+  title: "Dirham Genie | Unlocking the Best Deals Every Day",
+  description:
+    "Dirham Genie finds the best Amazon.ae deals in the UAE, every day. Genuine prices, genuine picks, genuine savings in dirhams.",
+  metadataBase: new URL("https://dirhamgenie.com"),
+  manifest: "/manifest.webmanifest",
+  openGraph: {
+    title: "Dirham Genie | Unlocking the Best Deals Every Day",
+    description: "Dirham Genie finds the best Amazon.ae deals in the UAE, every day.",
+    siteName: "Dirham Genie",
+    images: [{ url: "/logo-dirham-genie.png", width: 1080, height: 1080 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Dirham Genie | Unlocking the Best Deals Every Day",
+    description: "Dirham Genie finds the best Amazon.ae deals in the UAE, every day.",
+    images: ["/logo-dirham-genie.png"],
+  },
+};
+
+export default function RootLayout({ children }) {
+  const locale = getLocale();
+  const dir = locale === "ar" ? "rtl" : "ltr";
+
+  return (
+    <html
+      lang={locale}
+      dir={dir}
+      className={`${display.variable} ${body.variable} ${mono.variable}`}
+    >
+      <body className="font-body min-h-screen flex flex-col">
+        <GoogleAnalytics />
+        <ServiceWorkerRegister />
+        <Header />
+        <main className="flex-1">{children}</main>
+        <Footer />
+        <CookieConsent />
+      </body>
+    </html>
+  );
+}

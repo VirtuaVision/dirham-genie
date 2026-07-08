@@ -1,0 +1,61 @@
+import Link from "next/link";
+import Image from "next/image";
+import { formatAed, discountPercent } from "@/lib/formatCurrency";
+import CountdownTimer from "@/components/CountdownTimer";
+import StarRating from "@/components/StarRating";
+
+export default function ProductCard({ product }) {
+  const discount = discountPercent(product.price, product.list_price);
+
+  return (
+    <Link
+      href={`/product/${product.slug}`}
+      className="card-surface rounded-lg overflow-hidden flex flex-col group hover:border-gold/50 transition-colors"
+    >
+      <div className="relative aspect-square bg-white/5">
+        {product.image_url ? (
+          <Image
+            src={product.image_url}
+            alt={product.title}
+            fill
+            sizes="(max-width: 768px) 50vw, 240px"
+            className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-cream/30 text-sm">
+            No image
+          </div>
+        )}
+        {discount && (
+          <span className="absolute top-2 left-2 bg-deal-green text-white text-xs font-bold px-2 py-1 rounded">
+            -{discount}%
+          </span>
+        )}
+        {product.is_lightning_deal && product.deal_expires_at && (
+          <span className="absolute bottom-2 left-2">
+            <CountdownTimer expiresAt={product.deal_expires_at} />
+          </span>
+        )}
+      </div>
+
+      <div className="p-3 flex flex-col gap-1 flex-1">
+        <h3 className="text-sm text-cream/90 line-clamp-2 leading-snug min-h-[2.5rem]">
+          {product.title}
+        </h3>
+        <div className="mt-auto flex items-baseline gap-2">
+          <span className="font-mono text-gold font-semibold">
+            {formatAed(product.price) || "See price"}
+          </span>
+          {discount && (
+            <span className="font-mono text-xs text-cream/40 line-through">
+              {formatAed(product.list_price)}
+            </span>
+          )}
+        </div>
+        {product.rating && (
+          <StarRating rating={product.rating} reviewCount={product.review_count} />
+        )}
+      </div>
+    </Link>
+  );
+}

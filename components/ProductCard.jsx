@@ -31,6 +31,11 @@ export default function ProductCard({ product }) {
             -{discount}%
           </span>
         )}
+        {product.is_featured && (
+          <span className="absolute top-2 right-2 bg-gold text-ink text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">
+            Best Seller
+          </span>
+        )}
         {product.is_lightning_deal && product.deal_expires_at && (
           <span className="absolute bottom-2 left-2">
             <CountdownTimer expiresAt={product.deal_expires_at} />
@@ -39,6 +44,11 @@ export default function ProductCard({ product }) {
       </div>
 
       <div className="p-3 flex flex-col gap-1 flex-1">
+        {product.brand && (
+          <span className="text-[10px] uppercase tracking-wider text-gold/70 font-semibold">
+            {product.brand}
+          </span>
+        )}
         <h3 className="text-sm text-cream/90 line-clamp-2 leading-snug min-h-[2.5rem]">
           {product.title}
         </h3>
@@ -52,6 +62,11 @@ export default function ProductCard({ product }) {
             </span>
           )}
         </div>
+        {discount && (
+          <span className="text-[11px] text-deal-green font-medium">
+            Save {formatAed(product.list_price - product.price)} ({discount}%)
+          </span>
+        )}
         {product.rating && (
           <StarRating rating={product.rating} reviewCount={product.review_count} />
         )}

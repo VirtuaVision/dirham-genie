@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import ProductCard from "@/components/ProductCard";
 import RubTheLamp from "@/components/RubTheLamp";
@@ -7,6 +6,8 @@ import DealAlertForm from "@/components/DealAlertForm";
 import TrendingNow from "@/components/TrendingNow";
 import RecentlyViewed from "@/components/RecentlyViewed";
 import EmptyState from "@/components/EmptyState";
+import TrustBar from "@/components/TrustBar";
+import CategoryTiles from "@/components/CategoryTiles";
 import { getLocale, t } from "@/lib/i18n";
 
 export const revalidate = 60;
@@ -54,6 +55,8 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <TrustBar />
+
       <div className="max-w-6xl mx-auto px-4 py-4">
         <Disclosure compact />
       </div>
@@ -65,17 +68,8 @@ export default async function HomePage() {
       {/* Categories */}
       {categories.length > 0 && (
         <section className="max-w-6xl mx-auto px-4 py-8">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((c) => (
-              <Link
-                key={c.slug}
-                href={`/category/${c.slug}`}
-                className="text-xs px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
-              >
-                {c.name}
-              </Link>
-            ))}
-          </div>
+          <h2 className="font-display text-lg text-gold mb-4">Shop by Category</h2>
+          <CategoryTiles categories={categories} />
         </section>
       )}
 

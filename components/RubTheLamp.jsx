@@ -4,7 +4,6 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatAed } from "@/lib/formatCurrency";
-import LampIllustration from "@/components/LampIllustration";
 
 export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish" }) {
   const [loading, setLoading] = useState(false);
@@ -41,7 +40,11 @@ export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish" }) 
           className="hover:scale-105 active:scale-95 transition-transform cursor-pointer select-none"
           aria-label="Rub the lamp for a surprise deal"
         >
-          <LampIllustration className="w-40 h-28 md:w-52 md:h-36 lamp-glow" />
+          <img
+            src="/lamp-hero-1.png"
+            alt="Magic lamp"
+            className="w-40 md:w-56 lamp-glow"
+          />
         </button>
       </div>
 

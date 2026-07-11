@@ -2,27 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-ink: 248 250 252;
+  --color-ink-light: 255 255 255;
+  --color-ink-lighter: 243 244 246;
+  --color-cream: 17 24 39;
+  --color-gold: 217 119 6;
+  --color-gold-bright: 245 158 11;
+  --color-gold-dim: 180 83 9;
+  --color-deal-green: 22 163 74;
+}
+
+[data-theme="dark"] {
+  --color-ink: 11 11 16;
+  --color-ink-light: 20 20 28;
+  --color-ink-lighter: 29 29 40;
+  --color-cream: 245 241 232;
+  --color-gold: 212 175 55;
+  --color-gold-bright: 244 196 48;
+  --color-gold-dim: 138 109 31;
+  --color-deal-green: 46 158 91;
+}
+
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background-color: #0b0b10;
-  color: #f5f1e8;
+  background-color: rgb(var(--color-ink));
+  color: rgb(var(--color-cream));
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 ::selection {
-  background: #d4af37;
-  color: #0b0b10;
+  background: rgb(var(--color-gold));
+  color: rgb(var(--color-ink));
 }
 
-/* visible keyboard focus everywhere, per accessibility floor */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #f4c430;
+  outline: 2px solid rgb(var(--color-gold-bright));
   outline-offset: 2px;
 }
 
@@ -35,22 +57,28 @@ textarea:focus-visible {
 }
 
 .gold-gradient-text {
-  background: linear-gradient(90deg, #8a6d1f, #f4c430 45%, #d4af37 70%, #8a6d1f);
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-gold-dim)),
+    rgb(var(--color-gold-bright)) 45%,
+    rgb(var(--color-gold)) 70%,
+    rgb(var(--color-gold-dim))
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .lamp-glow {
-  filter: drop-shadow(0 0 24px rgba(212, 175, 55, 0.35));
+  filter: drop-shadow(0 0 24px rgb(var(--color-gold) / 0.35));
 }
 
 .card-surface {
-  background: linear-gradient(180deg, #14141c, #101018);
-  border: 1px solid rgba(212, 175, 55, 0.15);
+  background: linear-gradient(180deg, rgb(var(--color-ink-light)), rgb(var(--color-ink)));
+  border: 1px solid rgb(var(--color-gold) / 0.15);
 }
 
 .divider-gold {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.6), transparent);
+  background: linear-gradient(90deg, transparent, rgb(var(--color-gold) / 0.6), transparent);
 }

@@ -1,4 +1,5 @@
 import { Cinzel, Inter, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -56,6 +57,12 @@ export default function RootLayout({ children }) {
       className={`${display.variable} ${body.variable} ${mono.variable}`}
     >
       <body className="font-body min-h-screen flex flex-col">
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`try {
+            var t = localStorage.getItem('dg_theme');
+            if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+          } catch (e) {}`}
+        </Script>
         <GoogleAnalytics />
         <ServiceWorkerRegister />
         <Header />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getLocale, t } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import ThemeToggle from "@/components/ThemeToggle";
 
 async function getCategories() {
   const { data } = await supabase
@@ -19,16 +20,18 @@ export default async function Header() {
     <header className="bg-ink border-b border-gold/20 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-ink/90">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 group">
-            <img
-              src="/logo-dirham-genie.png"
-              alt="Dirham Genie"
-              className="h-10 w-10 rounded-full object-cover"
-            />
-            <span className="font-display text-xl tracking-wide gold-gradient-text">
-              Dirham Genie
-            </span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2 group">
+              <img
+                src="/logo-dirham-genie.png"
+                alt="Dirham Genie"
+                className="h-10 w-10 rounded-full object-cover"
+              />
+              <span className="font-display text-xl tracking-wide gold-gradient-text">
+                Dirham Genie
+              </span>
+            </Link>
+          </div>
 
           <form action="/search" className="hidden md:flex flex-1 max-w-md mx-6">
             <input
@@ -61,6 +64,10 @@ export default async function Header() {
             ))}
             <LanguageSwitcher locale={locale} />
           </nav>
+
+          <div className="flex items-center gap-2 ml-2">
+            <ThemeToggle />
+          </div>
         </div>
 
         <form action="/search" className="md:hidden pb-3 flex">

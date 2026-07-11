@@ -28,7 +28,7 @@ export default function SyncLogsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setMessage(
-        `Sync complete: checked ${json.products_checked}, updated ${json.products_updated}, errors ${json.errors}.`
+        `Sync complete: checked ${json.products_checked}, updated ${json.products_updated}, discovered ${json.new_products_discovered || 0} new product(s), errors ${json.errors}.`
       );
       load();
     } catch (err) {

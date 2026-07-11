@@ -47,7 +47,7 @@ export default function SyncLogsPage() {
           disabled={syncing}
           className="rounded-md bg-gold hover:bg-gold-bright text-ink text-sm font-semibold px-4 py-2 disabled:opacity-60"
         >
-          {{syncing ? "Syncing..." : "TEST 123"}}
+         {syncing ? "Syncing..." : "Run Sync Now"}
         </button>
       </div>
 

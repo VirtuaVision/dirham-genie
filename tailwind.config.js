@@ -2,25 +2,25 @@
 module.exports = {
   content: [
     "./app/**/*.{js,jsx}",
-"./components/**/*.{js,jsx}",
+    "./components/**/*.{js,jsx}",
   ],
   theme: {
     extend: {
       colors: {
         ink: {
-          DEFAULT: "#0B0B10",
-          light: "#14141C",
-          lighter: "#1D1D28",
+          DEFAULT: "rgb(var(--color-ink) / <alpha-value>)",
+          light: "rgb(var(--color-ink-light) / <alpha-value>)",
+          lighter: "rgb(var(--color-ink-lighter) / <alpha-value>)",
         },
         gold: {
-          DEFAULT: "#D4AF37",
-          bright: "#F4C430",
-          dim: "#8A6D1F",
+          DEFAULT: "rgb(var(--color-gold) / <alpha-value>)",
+          bright: "rgb(var(--color-gold-bright) / <alpha-value>)",
+          dim: "rgb(var(--color-gold-dim) / <alpha-value>)",
         },
-        cream: "#F5F1E8",
+        cream: "rgb(var(--color-cream) / <alpha-value>)",
         vvblue: "#1B2A6B",
         deal: {
-          green: "#2E9E5B",
+          green: "rgb(var(--color-deal-green) / <alpha-value>)",
         },
       },
       fontFamily: {

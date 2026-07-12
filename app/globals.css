@@ -2,14 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Theme variables ===== */
+/* Light is the default theme. Dark applies when <html data-theme="dark">. */
 :root {
-  --color-ink: 248 250 252;
-  --color-ink-light: 255 255 255;
-  --color-ink-lighter: 243 244 246;
-  --color-cream: 17 24 39;
-  --color-gold: 217 119 6;
-  --color-gold-bright: 245 158 11;
-  --color-gold-dim: 180 83 9;
+  --color-ink: 250 247 242;          /* warm cream page background */
+  --color-ink-light: 255 255 255;    /* white card surface (creates the two-tone contrast) */
+  --color-ink-lighter: 235 221 206;  /* warm mocha — inputs, accents, alternating sections */
+  --color-cream: 43 34 28;           /* warm charcoal-brown text */
+  --color-gold: 146 64 14;           /* deep amber accent */
+  --color-gold-bright: 180 83 9;
+  --color-gold-dim: 120 53 15;
   --color-deal-green: 22 163 74;
 }
 

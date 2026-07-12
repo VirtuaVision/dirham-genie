@@ -54,7 +54,7 @@ export default function LampWishlistButton({ product }) {
           : "bg-white border-gold/30 hover:border-gold"
       }`}
     >
-      <img src="/lamp-icon-gold.png" alt="" className="w-6 h-auto" />
+      <img src="/lamp-icon-gold-1.png" alt="" className="w-6 h-auto" />
     </button>
   );
 }

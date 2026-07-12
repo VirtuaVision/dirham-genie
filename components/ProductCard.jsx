@@ -3,6 +3,7 @@ import Image from "next/image";
 import { formatAed, discountPercent } from "@/lib/formatCurrency";
 import CountdownTimer from "@/components/CountdownTimer";
 import StarRating from "@/components/StarRating";
+import LampWishlistButton from "@/components/LampWishlistButton";
 
 export default function ProductCard({ product }) {
   const discount = discountPercent(product.price, product.list_price);
@@ -63,7 +64,7 @@ export default function ProductCard({ product }) {
               </span>
             )}
           </div>
-          <img src="/lamp-icon-gold.png" alt="" className="w-6 h-auto shrink-0 opacity-90" />
+          <LampWishlistButton product={product} />
         </div>
         {discount && (
           <span className="text-[11px] text-deal-green font-medium">

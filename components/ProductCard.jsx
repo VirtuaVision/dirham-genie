@@ -52,15 +52,18 @@ export default function ProductCard({ product }) {
         <h3 className="text-sm text-cream/90 line-clamp-2 leading-snug min-h-[2.5rem]">
           {product.title}
         </h3>
-        <div className="mt-auto flex items-baseline gap-2">
-          <span className="font-mono text-gold font-semibold">
-            {formatAed(product.price) || "See price"}
-          </span>
-          {discount && (
-            <span className="font-mono text-xs text-cream/40 line-through">
-              {formatAed(product.list_price)}
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-gold font-semibold">
+              {formatAed(product.price) || "See price"}
             </span>
-          )}
+            {discount && (
+              <span className="font-mono text-xs text-cream/40 line-through">
+                {formatAed(product.list_price)}
+              </span>
+            )}
+          </div>
+          <img src="/lamp-icon-gold.png" alt="" className="w-6 h-auto shrink-0 opacity-90" />
         </div>
         {discount && (
           <span className="text-[11px] text-deal-green font-medium">

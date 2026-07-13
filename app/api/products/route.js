@@ -70,6 +70,10 @@ export async function POST(request) {
       rating: body.rating || null,
       review_count: body.review_count || null,
       last_synced_at: body.source === "amazon_api" ? new Date().toISOString() : null,
+      in_stock: body.in_stock !== false,
+      additional_images: body.additional_images || null,
+      amazon_category: body.amazon_category || null,
+      amazon_sales_rank: body.amazon_sales_rank || null,
     })
     .select()
     .single();

@@ -3,7 +3,6 @@ import Image from "next/image";
 import { formatAed, discountPercent } from "@/lib/formatCurrency";
 import CountdownTimer from "@/components/CountdownTimer";
 import StarRating from "@/components/StarRating";
-import LampWishlistButton from "@/components/LampWishlistButton";
 
 export default function ProductCard({ product }) {
   const discount = discountPercent(product.price, product.list_price);
@@ -37,6 +36,13 @@ export default function ProductCard({ product }) {
             Best Seller
           </span>
         )}
+        {product.in_stock === false && (
+          <div className="absolute inset-0 bg-ink/70 flex items-center justify-center">
+            <span className="bg-ink text-cream text-xs font-semibold px-3 py-1.5 rounded border border-gold/30">
+              Out of Stock
+            </span>
+          </div>
+        )}
         {product.is_lightning_deal && product.deal_expires_at && (
           <span className="absolute bottom-2 left-2">
             <CountdownTimer expiresAt={product.deal_expires_at} />
@@ -64,7 +70,11 @@ export default function ProductCard({ product }) {
               </span>
             )}
           </div>
-          <LampWishlistButton product={product} />
+          <img
+            src="/lamp-icon-gold-1.png"
+            alt=""
+            className="w-9 h-auto shrink-0 opacity-100"
+          />
         </div>
         {discount && (
           <span className="text-[11px] text-deal-green font-medium">

@@ -4,6 +4,8 @@ import { isAdminLoggedIn } from "@/lib/auth";
 import { fetchProductsByAsins, searchProductsByKeyword, rankBestProducts, chunkArray } from "@/lib/amazon";
 import slugify from "slugify";
 
+// How many brand-new products to add per category, per run. Kept small and
+// conservative to stay well within Amazon's daily request allowance.
 const NEW_PRODUCTS_PER_CATEGORY = 2;
 
 async function uniqueSlug(title) {
@@ -48,6 +50,7 @@ async function discoverNewDeals() {
             brand: item.brand,
             description: item.description || null,
             image_url: item.image_url,
+            additional_images: item.additional_images || null,
             price: item.price,
             list_price: item.list_price,
             currency: item.currency,
@@ -56,6 +59,9 @@ async function discoverNewDeals() {
             category_id: category.id,
             source: "amazon_api",
             is_active: true,
+            in_stock: item.in_stock !== false,
+            amazon_category: item.amazon_category || null,
+            amazon_sales_rank: item.amazon_sales_rank || null,
             rating: item.rating,
             review_count: item.review_count,
             last_synced_at: new Date().toISOString(),
@@ -83,6 +89,8 @@ async function runSync() {
   let errors = 0;
   const errorMessages = [];
 
+  // 1) Refresh live data for every product that came from the Amazon API,
+  // batching up to 10 ASINs per request (Amazon's per-request limit).
   const { data: products } = await supabaseAdmin
     .from("products")
     .select("id, asin, price")
@@ -110,8 +118,12 @@ async function runSync() {
             price: fresh.price,
             list_price: fresh.list_price,
             image_url: fresh.image_url,
+            additional_images: fresh.additional_images || null,
             rating: fresh.rating,
             review_count: fresh.review_count,
+            in_stock: fresh.in_stock !== false,
+            amazon_category: fresh.amazon_category || null,
+            amazon_sales_rank: fresh.amazon_sales_rank || null,
             last_synced_at: new Date().toISOString(),
           })
           .eq("id", product.id);
@@ -129,9 +141,12 @@ async function runSync() {
     }
   }
 
+  // 2) Discover brand-new products across your categories, so the site
+  // grows on its own without you having to paste in links.
   const { discovered, discoveryErrors, details: discoveryDetails } = await discoverNewDeals();
   errorMessages.push(...discoveryDetails);
 
+  // 3) Expired-deal detection: turn off lightning-deal status once the deadline passes
   const nowIso = new Date().toISOString();
   await supabaseAdmin
     .from("products")
@@ -157,6 +172,8 @@ async function runSync() {
   return summary;
 }
 
+// Called automatically by your scheduler (Vercel Cron and/or an external
+// service like cron-job.org), secured with CRON_SECRET
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -166,6 +183,7 @@ export async function GET(request) {
   return NextResponse.json(summary);
 }
 
+// Called from the admin panel's "Run Sync Now" button
 export async function POST() {
   if (!(await isAdminLoggedIn())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

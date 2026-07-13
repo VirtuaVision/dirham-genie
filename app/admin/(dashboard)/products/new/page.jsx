@@ -20,7 +20,7 @@ const emptyForm = {
 
 export default function NewProductPage() {
   const router = useRouter();
-  const [mode, setMode] = useState("amazon"); // "amazon" | "manual"
+  const [mode, setMode] = useState("amazon");
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [amazonInput, setAmazonInput] = useState("");
@@ -35,6 +35,15 @@ export default function NewProductPage() {
       .then((json) => setCategories(json.categories || []))
       .catch(() => {});
   }, []);
+
+  const genieCategory = categories.find((c) => c.slug === "genies-choice");
+
+  function switchMode(next) {
+    setMode(next);
+    if (next === "manual" && genieCategory) {
+      setForm((f) => ({ ...f, category_id: genieCategory.id, source: "manual" }));
+    }
+  }
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -106,7 +115,7 @@ export default function NewProductPage() {
 
       <div className="flex gap-2 mb-6">
         <button
-          onClick={() => setMode("amazon")}
+          onClick={() => switchMode("amazon")}
           className={`text-sm px-4 py-2 rounded-md ${
             mode === "amazon" ? "bg-gold text-ink font-semibold" : "bg-white/5 text-cream/70"
           }`}
@@ -114,7 +123,7 @@ export default function NewProductPage() {
           Auto-fetch from Amazon.ae
         </button>
         <button
-          onClick={() => setMode("manual")}
+          onClick={() => switchMode("manual")}
           className={`text-sm px-4 py-2 rounded-md ${
             mode === "manual" ? "bg-gold text-ink font-semibold" : "bg-white/5 text-cream/70"
           }`}
@@ -245,16 +254,32 @@ export default function NewProductPage() {
 
         <div>
           <label className="block text-xs text-cream/60 mb-1">Category</label>
-          <select
-            value={form.category_id}
-            onChange={(e) => update("category_id", e.target.value)}
-            className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-          >
-            <option value="">Uncategorised</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          {mode === "manual" ? (
+            <>
+              <select
+                value={form.category_id}
+                disabled
+                className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream/60 outline-none opacity-70 cursor-not-allowed"
+              >
+                <option>{genieCategory?.name || "Genie's Choice"}</option>
+              </select>
+              <p className="text-xs text-cream/40 mt-1">
+                Manually-added products always go under Genie&apos;s Choice, to
+                keep auto-fetched deals separated from your hand-picked ones.
+              </p>
+            </>
+          ) : (
+            <select
+              value={form.category_id}
+              onChange={(e) => update("category_id", e.target.value)}
+              className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+            >
+              <option value="">Uncategorised</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div>

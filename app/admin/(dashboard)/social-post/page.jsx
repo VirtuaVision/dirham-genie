@@ -51,6 +51,27 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Fills n cards into one row (n=1,2,3) or a 2x2 grid (n=4), always using
+// the full available area — no empty cells regardless of how many are picked.
+function computeLayout(n, areaX, areaY, areaW, areaH, gap) {
+  const positions = [];
+  if (n === 4) {
+    const cardW = (areaW - gap) / 2;
+    const cardH = (areaH - gap) / 2;
+    for (let r = 0; r < 2; r++) {
+      for (let c = 0; c < 2; c++) {
+        positions.push([areaX + c * (cardW + gap), areaY + r * (cardH + gap), cardW, cardH]);
+      }
+    }
+  } else {
+    const cardW = (areaW - gap * (n - 1)) / n;
+    for (let i = 0; i < n; i++) {
+      positions.push([areaX + i * (cardW + gap), areaY, cardW, areaH]);
+    }
+  }
+  return positions;
+}
+
 export default function SocialPostPage() {
   const canvasRef = useRef(null);
   const [products, setProducts] = useState([]);
@@ -97,71 +118,57 @@ export default function SocialPostPage() {
       canvas.height = SIZE;
       const ctx = canvas.getContext("2d");
 
-      // Background
+      // Light background — cream to white
       const bgGradient = ctx.createLinearGradient(0, 0, 0, SIZE);
-      bgGradient.addColorStop(0, "#14141C");
-      bgGradient.addColorStop(1, "#0B0B10");
+      bgGradient.addColorStop(0, "#FAF7F2");
+      bgGradient.addColorStop(1, "#FFFFFF");
       ctx.fillStyle = bgGradient;
       ctx.fillRect(0, 0, SIZE, SIZE);
 
-      // Header
+      // Header: logo mark (aspect-ratio preserved, no more squishing) + title
       try {
-        const logo = await loadImage("/logo-dirham-genie.png");
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(90, 90, 50, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(logo, 40, 40, 100, 100);
-        ctx.restore();
+        const logo = await loadImage("/lamp-hero.png");
+        const boxSize = 96;
+        const scale = Math.min(boxSize / logo.width, boxSize / logo.height);
+        const w = logo.width * scale;
+        const h = logo.height * scale;
+        ctx.drawImage(logo, 40 + (boxSize - w) / 2, 32 + (boxSize - h) / 2, w, h);
       } catch {
         // logo failed to load; continue without it
       }
 
-      ctx.fillStyle = "#D4AF37";
+      ctx.fillStyle = "#92400E";
       ctx.font = "bold 46px Arial";
       ctx.textBaseline = "top";
-      ctx.fillText("TODAY'S BEST DEALS", 160, 55);
-      ctx.fillStyle = "rgba(245,241,232,0.6)";
+      ctx.fillText("TODAY'S BEST DEALS", 150, 55);
+      ctx.fillStyle = "rgba(43,34,28,0.55)";
       ctx.font = "26px Arial";
-      ctx.fillText("Dirham Genie \u00b7 dirhamgenie.com", 160, 108);
+      ctx.fillText("Dirham Genie \u00b7 dirhamgenie.com", 150, 108);
 
-      // Product grid (2x2)
-      const gridTop = 180;
-      const gap = 24;
-      const cardSize = (SIZE - gap * 3) / 2;
-      const positions = [
-        [gap, gridTop],
-        [gap * 2 + cardSize, gridTop],
-        [gap, gridTop + cardSize + gap],
-        [gap * 2 + cardSize, gridTop + cardSize + gap],
-      ];
+      // Product cards — dynamic layout, always fills the available space
+      const areaX = 24, areaY = 170, areaW = SIZE - 48, areaH = SIZE - 170 - 70;
+      const positions = computeLayout(chosen.length, areaX, areaY, areaW, areaH, 20);
 
       for (let i = 0; i < chosen.length; i++) {
         const p = chosen[i];
-        const [x, y] = positions[i];
+        const [x, y, w, h] = positions[i];
 
-        ctx.fillStyle = "#1D1D28";
-        roundRect(ctx, x, y, cardSize, cardSize, 20);
+        ctx.fillStyle = "#FFFFFF";
+        roundRect(ctx, x, y, w, h, 20);
         ctx.fill();
-        ctx.strokeStyle = "rgba(212,175,55,0.25)";
+        ctx.strokeStyle = "rgba(146,64,14,0.2)";
         ctx.lineWidth = 2;
-        roundRect(ctx, x, y, cardSize, cardSize, 20);
+        roundRect(ctx, x, y, w, h, 20);
         ctx.stroke();
 
-        const imgBox = cardSize * 0.55;
+        const imgBox = Math.min(w * 0.85, h * 0.55);
         if (p.image_url) {
           try {
             const img = await loadImage(`/api/proxy-image?url=${encodeURIComponent(p.image_url)}`);
             const scale = Math.min(imgBox / img.width, imgBox / img.height) * 0.9;
-            const w = img.width * scale;
-            const h = img.height * scale;
-            ctx.drawImage(
-              img,
-              x + (cardSize - w) / 2,
-              y + 20 + (imgBox - h) / 2,
-              w,
-              h
-            );
+            const iw = img.width * scale;
+            const ih = img.height * scale;
+            ctx.drawImage(img, x + (w - iw) / 2, y + 20 + (imgBox - ih) / 2, iw, ih);
           } catch {
             // image failed to load; skip
           }
@@ -169,7 +176,7 @@ export default function SocialPostPage() {
 
         const discount = discountPercent(p.price, p.list_price);
         if (discount) {
-          ctx.fillStyle = "#2E9E5B";
+          ctx.fillStyle = "#16A34A";
           roundRect(ctx, x + 16, y + 16, 90, 40, 8);
           ctx.fill();
           ctx.fillStyle = "#ffffff";
@@ -177,21 +184,20 @@ export default function SocialPostPage() {
           ctx.fillText(`-${discount}%`, x + 28, y + 26);
         }
 
-        ctx.fillStyle = "#F5F1E8";
-        ctx.font = "24px Arial";
-        wrapText(ctx, p.title, x + 20, y + imgBox + 30, cardSize - 40, 30, 2);
+        ctx.fillStyle = "#2B221C";
+        ctx.font = `${Math.max(18, Math.min(26, w / 14))}px Arial`;
+        wrapText(ctx, p.title, x + 20, y + 20 + imgBox + 16, w - 40, 30, 2);
 
-        ctx.fillStyle = "#D4AF37";
+        ctx.fillStyle = "#92400E";
         ctx.font = "bold 30px Arial";
-        ctx.fillText(formatAed(p.price) || "See price", x + 20, y + cardSize - 55);
+        ctx.fillText(formatAed(p.price) || "See price", x + 20, y + h - 55);
       }
 
-      // Footer disclosure
-      ctx.fillStyle = "rgba(245,241,232,0.45)";
-      ctx.font = "20px Arial";
-      ctx.fillText("As an Amazon Associate, Dirham Genie earns from qualifying purchases.", gap, SIZE - 40);
+      ctx.fillStyle = "rgba(43,34,28,0.4)";
+      ctx.font = "18px Arial";
+      ctx.fillText("dirhamgenie.com", areaX, SIZE - 40);
 
-      // Build the caption text to go with the image
+      // Caption — no disclosure line, per request
       const lines = chosen.map((p) => {
         const price = formatAed(p.price) || "See price on Amazon";
         return `\u2728 ${p.title} \u2014 ${price}\n${p.affiliate_url}`;
@@ -200,8 +206,7 @@ export default function SocialPostPage() {
         `\ud83e\uddde\u200d\u2642\ufe0f Today's Best Deals from Dirham Genie! \ud83d\udd25\n\n` +
         lines.join("\n\n") +
         `\n\n\ud83d\udccd Shop more at dirhamgenie.com\n` +
-        `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay\n\n` +
-        `As an Amazon Associate, Dirham Genie earns from qualifying purchases.`;
+        `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay`;
       setCaption(generatedCaption);
     } catch (err) {
       setError(err.message);
@@ -267,13 +272,16 @@ export default function SocialPostPage() {
             {products.map((p) => (
               <label
                 key={p.id}
-                className="flex items-center gap-2 text-sm text-cream/80 bg-white/5 rounded px-3 py-2"
+                className="flex items-center gap-3 text-sm text-cream/80 bg-white/5 rounded px-3 py-2"
               >
                 <input
                   type="checkbox"
                   checked={selected.includes(p.id)}
                   onChange={() => toggleSelect(p.id)}
                 />
+                {p.image_url && (
+                  <img src={p.image_url} alt="" className="w-8 h-8 object-contain rounded shrink-0 bg-white" />
+                )}
                 <span className="truncate">{p.title}</span>
               </label>
             ))}
@@ -324,7 +332,7 @@ export default function SocialPostPage() {
               <button
                 onClick={publishToSocial}
                 disabled={publishing}
-                className="rounded-md bg-vvblue hover:opacity-90 text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
+                className="rounded-md text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
                 style={{ backgroundColor: "#3B5BDB" }}
               >
                 {publishing ? "Posting..." : "📤 Post to Facebook & Instagram"}

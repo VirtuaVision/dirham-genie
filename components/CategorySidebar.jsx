@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const CATEGORY_ICONS = {
+  "genies-choice": "🧞",
   electronics: "🎧",
   "home-kitchen": "🏠",
   "beauty-personal-care": "💄",

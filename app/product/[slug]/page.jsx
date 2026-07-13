@@ -12,6 +12,7 @@ import PriceHistory from "@/components/PriceHistory";
 import CountdownTimer from "@/components/CountdownTimer";
 import RecordView from "@/components/RecordView";
 import StarRating from "@/components/StarRating";
+import ProductGallery from "@/components/ProductGallery";
 
 export const revalidate = 60;
 
@@ -102,28 +103,24 @@ export default async function ProductPage({ params }) {
       <RecordView product={product} />
 
       <div className="grid md:grid-cols-2 gap-8">
-        <div className="relative aspect-square card-surface rounded-lg">
-          {product.image_url ? (
-            <Image
-              src={product.image_url}
-              alt={product.title}
-              fill
-              sizes="(max-width: 768px) 100vw, 480px"
-              className="object-contain p-8"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-cream/30">
-              No image available
-            </div>
-          )}
+        <div className="relative card-surface rounded-lg p-2">
+          <ProductGallery
+            mainImage={product.image_url}
+            additionalImages={product.additional_images}
+            title={product.title}
+          />
           {discount && (
-            <span className="absolute top-3 left-3 bg-deal-green text-white text-sm font-bold px-3 py-1 rounded">
+            <span className="absolute top-5 left-5 bg-deal-green text-white text-sm font-bold px-3 py-1 rounded">
               Save {discount}%
             </span>
           )}
+          {product.in_stock === false && (
+            <span className="absolute top-5 right-5 bg-ink text-cream text-sm font-semibold px-3 py-1 rounded border border-gold/30">
+              Out of Stock
+            </span>
+          )}
           {product.is_lightning_deal && product.deal_expires_at && (
-            <span className="absolute bottom-3 left-3">
+            <span className="absolute bottom-16 left-5">
               <CountdownTimer expiresAt={product.deal_expires_at} />
             </span>
           )}
@@ -142,6 +139,12 @@ export default async function ProductPage({ params }) {
               <StarRating rating={product.rating} reviewCount={product.review_count} size="text-base" />
               <span className="text-cream/40 text-xs ml-1">on Amazon.ae</span>
             </div>
+          )}
+
+          {product.amazon_category && product.amazon_sales_rank && (
+            <p className="text-xs text-cream/50 mt-1">
+              #{product.amazon_sales_rank} in {product.amazon_category} on Amazon.ae
+            </p>
           )}
 
           <div className="flex items-baseline gap-3 mt-4">

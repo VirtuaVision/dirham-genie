@@ -117,6 +117,8 @@ export default function SocialPostPage() {
       canvas.width = SIZE;
       canvas.height = SIZE;
       const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
 
       // Light background — cream to white
       const bgGradient = ctx.createLinearGradient(0, 0, 0, SIZE);
@@ -127,7 +129,7 @@ export default function SocialPostPage() {
 
       // Header: logo mark (aspect-ratio preserved, no more squishing) + title
       try {
-        const logo = await loadImage("/lamp-hero.png");
+        const logo = await loadImage("/logo-dirham-genie.png");
         const boxSize = 96;
         const scale = Math.min(boxSize / logo.width, boxSize / logo.height);
         const w = logo.width * scale;
@@ -143,7 +145,7 @@ export default function SocialPostPage() {
       ctx.fillText("TODAY'S BEST DEALS", 150, 55);
       ctx.fillStyle = "rgba(43,34,28,0.55)";
       ctx.font = "26px Arial";
-      ctx.fillText("Dirham Genie \u00b7 dirhamgenie.com", 150, 108);
+      ctx.fillText("Dirham Genie · dirham-genie.vercel.app", 150, 108);
 
       // Product cards — dynamic layout, always fills the available space
       const areaX = 24, areaY = 170, areaW = SIZE - 48, areaH = SIZE - 170 - 70;
@@ -186,26 +188,55 @@ export default function SocialPostPage() {
 
         ctx.fillStyle = "#2B221C";
         ctx.font = `${Math.max(18, Math.min(26, w / 14))}px Arial`;
-        wrapText(ctx, p.title, x + 20, y + 20 + imgBox + 16, w - 40, 30, 2);
+        const titleY = y + 20 + imgBox + 16;
+        const titleHeight = wrapText(ctx, p.title, x + 20, titleY, w - 40, 30, 2);
+
+        const priceY = titleY + titleHeight + 14;
+        const priceText = formatAed(p.price) || "See price";
 
         ctx.fillStyle = "#92400E";
         ctx.font = "bold 30px Arial";
-        ctx.fillText(formatAed(p.price) || "See price", x + 20, y + h - 55);
+        ctx.fillText(priceText, x + 20, priceY);
+
+        if (discount && p.list_price) {
+          const priceWidth = ctx.measureText(priceText).width;
+          const originalText = formatAed(p.list_price);
+          const strikeX = x + 20 + priceWidth + 14;
+
+          ctx.fillStyle = "#9CA3AF";
+          ctx.font = "20px Arial";
+          ctx.fillText(originalText, strikeX, priceY + 6);
+
+          const origWidth = ctx.measureText(originalText).width;
+          ctx.strokeStyle = "#9CA3AF";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(strikeX, priceY + 16);
+          ctx.lineTo(strikeX + origWidth, priceY + 16);
+          ctx.stroke();
+        }
       }
 
       ctx.fillStyle = "rgba(43,34,28,0.4)";
       ctx.font = "18px Arial";
-      ctx.fillText("dirhamgenie.com", areaX, SIZE - 40);
+      ctx.fillText("dirham-genie.vercel.app", areaX, SIZE - 40);
 
-      // Caption — no disclosure line, per request
+      // Caption — discount %, correct link, and social pages included
       const lines = chosen.map((p) => {
         const price = formatAed(p.price) || "See price on Amazon";
-        return `\u2728 ${p.title} \u2014 ${price}\n${p.affiliate_url}`;
+        const discount = discountPercent(p.price, p.list_price);
+        const priceLine = discount
+          ? `${price} (was ${formatAed(p.list_price)}) — ${discount}% OFF 🔥`
+          : price;
+        return `✨ ${p.title}\n💰 ${priceLine}\n🔗 ${p.affiliate_url}`;
       });
       const generatedCaption =
-        `\ud83e\uddde\u200d\u2642\ufe0f Today's Best Deals from Dirham Genie! \ud83d\udd25\n\n` +
+        `🧞‍♂️ Today's Best Deals from Dirham Genie! 🔥\n\n` +
         lines.join("\n\n") +
-        `\n\n\ud83d\udccd Shop more at dirhamgenie.com\n` +
+        `\n\n📍 Shop more: https://dirham-genie.vercel.app/\n` +
+        `📲 WhatsApp deals community: https://whatsapp.com/channel/0029VbDuCjs8F2pFx9WrrQ1b\n` +
+        `👍 Facebook: https://www.facebook.com/share/192L4NKNcz/\n` +
+        `📸 Instagram: https://www.instagram.com/dirham_genie\n\n` +
         `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay`;
       setCaption(generatedCaption);
     } catch (err) {

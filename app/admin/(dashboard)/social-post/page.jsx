@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { formatAed, discountPercent } from "@/lib/formatCurrency";
 
 const SIZE = 1080;
@@ -72,8 +73,10 @@ function computeLayout(n, areaX, areaY, areaW, areaH, gap) {
   return positions;
 }
 
-export default function SocialPostPage() {
+function SocialPostPageInner() {
   const canvasRef = useRef(null);
+  const searchParams = useSearchParams();
+  const preselectProductId = searchParams.get("product");
   const [products, setProducts] = useState([]);
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,13 +90,28 @@ export default function SocialPostPage() {
     fetch("/api/products")
       .then((r) => r.json())
       .then((json) => {
-        const recent = (json.products || []).filter((p) => p.is_active).slice(0, 10);
-        setProducts(recent);
-        setSelected(recent.slice(0, MAX_SLOTS).map((p) => p.id));
+        const active = (json.products || []).filter((p) => p.is_active);
+
+        // Coming from "Create Post" on a Search Amazon result — that
+        // product might not be in the most-recent-10, so make sure it's
+        // pulled in and pre-selected regardless of where it sorts.
+        if (preselectProductId) {
+          const match = active.find((p) => String(p.id) === String(preselectProductId));
+          const recent = active.slice(0, 10);
+          const list = match && !recent.some((p) => p.id === match.id)
+            ? [match, ...recent].slice(0, 10)
+            : recent;
+          setProducts(list);
+          setSelected(match ? [match.id] : recent.slice(0, MAX_SLOTS).map((p) => p.id));
+        } else {
+          const recent = active.slice(0, 10);
+          setProducts(recent);
+          setSelected(recent.slice(0, MAX_SLOTS).map((p) => p.id));
+        }
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [preselectProductId]);
 
   function toggleSelect(id) {
     setSelected((prev) => {
@@ -401,5 +419,13 @@ export default function SocialPostPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SocialPostPage() {
+  return (
+    <Suspense fallback={<p className="text-cream/50 text-sm">Loading...</p>}>
+      <SocialPostPageInner />
+    </Suspense>
   );
 }

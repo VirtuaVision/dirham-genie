@@ -24,48 +24,84 @@ async function uniqueSlug(title) {
   }
 }
 
+async function insertDiscoveredProduct(item, categoryId) {
+  const slug = await uniqueSlug(item.title);
+  return supabaseAdmin.from("products").insert({
+    title: item.title,
+    slug,
+    brand: item.brand,
+    description: item.description || null,
+    image_url: item.image_url,
+    additional_images: item.additional_images || null,
+    price: item.price,
+    list_price: item.list_price,
+    currency: item.currency,
+    asin: item.asin,
+    affiliate_url: item.affiliate_url,
+    category_id: categoryId,
+    source: "amazon_api",
+    is_active: true,
+    in_stock: item.in_stock !== false,
+    amazon_category: item.amazon_category || null,
+    amazon_sales_rank: item.amazon_sales_rank || null,
+    rating: item.rating,
+    review_count: item.review_count,
+    last_synced_at: new Date().toISOString(),
+  });
+}
+
+const MAX_MEGA_DEALS_PER_DAY = 6;
+
 async function discoverNewDeals() {
   let discovered = 0;
+  let megaDealsFound = 0;
   let discoveryErrors = 0;
   const details = [];
 
-  const { data: categories } = await supabaseAdmin.from("categories").select("id, name, slug");
+  const { data: allCategories } = await supabaseAdmin.from("categories").select("id, name, slug");
+  const megaDealsCategory = (allCategories || []).find((c) => c.slug === "mega-deals");
+  const regularCategories = (allCategories || []).filter(
+    (c) => c.slug !== "mega-deals" && c.slug !== "genies-choice"
+  );
+
   const { data: existingProducts } = await supabaseAdmin.from("products").select("asin").not("asin", "is", null);
   const existingAsins = new Set((existingProducts || []).map((p) => p.asin));
+  let megaDealsToday = 0;
 
-  for (const category of categories || []) {
+  for (const category of regularCategories) {
     try {
       const results = await searchProductsByKeyword(category.name);
-      const best = rankBestProducts(
-        results.filter((p) => !existingAsins.has(p.asin)),
-        NEW_PRODUCTS_PER_CATEGORY
-      );
+      const fresh = results.filter((p) => !existingAsins.has(p.asin));
+
+      // Pull out anything 50%+ off for the dedicated Mega Deals tab first,
+      // reusing this same search instead of making extra API calls.
+      let megaPicks = [];
+      if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
+        megaPicks = rankBestProducts(fresh, 1, 0.5);
+      }
+
+      for (const item of megaPicks) {
+        try {
+          const { error } = await insertDiscoveredProduct(item, megaDealsCategory.id);
+          if (error) throw error;
+          existingAsins.add(item.asin);
+          megaDealsToday += 1;
+          megaDealsFound += 1;
+          discovered += 1;
+        } catch (err) {
+          discoveryErrors += 1;
+          details.push(`Mega deal insert (${category.name}): ${err.message}`);
+        }
+      }
+
+      // Everything else goes through the normal per-category discovery,
+      // excluding whatever was just claimed by Mega Deals above.
+      const remaining = fresh.filter((p) => !megaPicks.some((m) => m.asin === p.asin));
+      const best = rankBestProducts(remaining, NEW_PRODUCTS_PER_CATEGORY, 0.25);
 
       for (const item of best) {
         try {
-          const slug = await uniqueSlug(item.title);
-          const { error } = await supabaseAdmin.from("products").insert({
-            title: item.title,
-            slug,
-            brand: item.brand,
-            description: item.description || null,
-            image_url: item.image_url,
-            additional_images: item.additional_images || null,
-            price: item.price,
-            list_price: item.list_price,
-            currency: item.currency,
-            asin: item.asin,
-            affiliate_url: item.affiliate_url,
-            category_id: category.id,
-            source: "amazon_api",
-            is_active: true,
-            in_stock: item.in_stock !== false,
-            amazon_category: item.amazon_category || null,
-            amazon_sales_rank: item.amazon_sales_rank || null,
-            rating: item.rating,
-            review_count: item.review_count,
-            last_synced_at: new Date().toISOString(),
-          });
+          const { error } = await insertDiscoveredProduct(item, category.id);
           if (error) throw error;
           existingAsins.add(item.asin);
           discovered += 1;
@@ -80,7 +116,7 @@ async function discoverNewDeals() {
     }
   }
 
-  return { discovered, discoveryErrors, details };
+  return { discovered, megaDealsFound, discoveryErrors, details };
 }
 
 async function runSync() {
@@ -143,7 +179,7 @@ async function runSync() {
 
   // 2) Discover brand-new products across your categories, so the site
   // grows on its own without you having to paste in links.
-  const { discovered, discoveryErrors, details: discoveryDetails } = await discoverNewDeals();
+  const { discovered, megaDealsFound, discoveryErrors, details: discoveryDetails } = await discoverNewDeals();
   errorMessages.push(...discoveryDetails);
 
   // 3) Expired-deal detection: turn off lightning-deal status once the deadline passes
@@ -165,7 +201,9 @@ async function runSync() {
     products_updated: updated,
     new_products_discovered: discovered,
     errors: errors + discoveryErrors,
-    details: `Discovered ${discovered} new product(s) across categories.\n` + errorMessages.join("\n") || null,
+    details:
+      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals).\n` +
+      errorMessages.join("\n") || null,
   };
 
   await supabaseAdmin.from("sync_logs").insert(summary);

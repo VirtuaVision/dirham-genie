@@ -10,7 +10,24 @@ export const revalidate = 0;
 async function getLiveAmazonResults(query) {
   try {
     const results = await searchProductsByKeyword(query);
-    return rankBestProducts(results, 6);
+    const ranked = rankBestProducts(results, 6);
+
+    // Amazon's search endpoint doesn't reliably include savings/list-price
+    // data on every call for the same query — sometimes a refetch a moment
+    // later returns it and sometimes it doesn't. If this response came back
+    // unusually sparse (almost nothing has a discount), try once more
+    // rather than showing a mostly-discount-less set to visitors.
+    const withDiscount = ranked.filter((p) => p.list_price && p.list_price > p.price).length;
+    if (ranked.length > 0 && withDiscount === 0) {
+      const retry = await searchProductsByKeyword(query);
+      const rerankedRetry = rankBestProducts(retry, 6);
+      const retryWithDiscount = rerankedRetry.filter(
+        (p) => p.list_price && p.list_price > p.price
+      ).length;
+      if (retryWithDiscount > 0) return rerankedRetry;
+    }
+
+    return ranked;
   } catch {
     // Amazon keys not configured yet, or the API call failed — fail quietly,
     // the page still works fine with just local results.

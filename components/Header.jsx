@@ -98,7 +98,8 @@ export default async function Header() {
             type="submit"
             className="rounded-r-md bg-gold px-4 text-sm font-semibold text-ink"
           >
-            Go
+       
+     Go
           </button>
         </form>
       </div>

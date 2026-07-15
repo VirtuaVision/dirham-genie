@@ -541,6 +541,7 @@ export default function NewProductPage() {
           </label>
         </div>
 
+
         {form.is_lightning_deal && (
           <div>
             <label className="block text-xs text-cream/60 mb-1">Deal ends at</label>

@@ -5,13 +5,13 @@
 /* ===== Theme variables ===== */
 /* Light is the default theme. Dark applies when <html data-theme="dark">. */
 :root {
-  --color-ink: 250 247 242;          /* warm cream page background */
-  --color-ink-light: 255 255 255;    /* white card surface (creates the two-tone contrast) */
-  --color-ink-lighter: 235 221 206;  /* warm mocha — inputs, accents, alternating sections */
-  --color-cream: 43 34 28;           /* warm charcoal-brown text */
-  --color-gold: 146 64 14;           /* deep amber accent */
-  --color-gold-bright: 180 83 9;
-  --color-gold-dim: 120 53 15;
+  --color-ink: 248 248 250;          /* clean off-white page background */
+  --color-ink-light: 255 255 255;    /* white card surface */
+  --color-ink-lighter: 240 241 245;  /* light slate-tinted gray — inputs, accents */
+  --color-cream: 26 26 31;           /* near-black text */
+  --color-gold: 83 95 128;           /* accent — #535F80 slate blue */
+  --color-gold-bright: 108 120 153;
+  --color-gold-dim: 63 75 108;
   --color-deal-green: 22 163 74;
 }
 

@@ -8,6 +8,7 @@ const links = [
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/products", label: "All Products" },
   { href: "/admin/products/new", label: "Add Product" },
+  { href: "/admin/page-builder", label: "Page Builder" },
   { href: "/admin/bulk-import", label: "Bulk Import" },
   { href: "/admin/banners", label: "Banners" },
   { href: "/admin/coupons", label: "Coupons" },

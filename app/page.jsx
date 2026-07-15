@@ -11,6 +11,10 @@ import EmptyState from "@/components/EmptyState";
 import TrustBar from "@/components/TrustBar";
 import CategorySidebar from "@/components/CategorySidebar";
 import BannerStrip from "@/components/BannerStrip";
+import PrimePromoBanner from "@/components/PrimePromoBanner";
+import TrendingCarousel from "@/components/TrendingCarousel";
+import FeatureCards from "@/components/FeatureCards";
+import CategoryIconStrip from "@/components/CategoryIconStrip";
 import Pagination from "@/components/Pagination";
 import { getLocale, t } from "@/lib/i18n";
 
@@ -93,7 +97,13 @@ function BlockRenderer({ block, context }) {
     case "hero":
       return (
         <section className="relative overflow-hidden border-b border-gold/15">
-          <div className="max-w-6xl mx-auto px-4 py-16 md:py-20">
+          {config.backgroundImage && (
+            <div
+              className="absolute inset-0 bg-cover bg-center opacity-20"
+              style={{ backgroundImage: `url(${config.backgroundImage})` }}
+            />
+          )}
+          <div className="relative max-w-6xl mx-auto px-4 py-16 md:py-20">
             <div className="text-center max-w-2xl mx-auto mb-10">
               <p className="uppercase tracking-[0.2em] text-xs text-gold/80 mb-3">
                 UAE&apos;s deal-hunting genie
@@ -167,6 +177,18 @@ function BlockRenderer({ block, context }) {
       );
     }
 
+    case "prime_banner":
+      return <PrimePromoBanner />;
+
+    case "trending_carousel":
+      return <TrendingCarousel products={featured} />;
+
+    case "feature_cards":
+      return <FeatureCards />;
+
+    case "category_strip":
+      return <CategoryIconStrip categories={categories} />;
+
     case "banners":
       return <BannerStrip banners={banners.slice(0, config.limit || 3)} />;
 
@@ -192,9 +214,12 @@ function BlockRenderer({ block, context }) {
       );
 
     case "text_block":
-      if (!config.heading && !config.body) return null;
+      if (!config.heading && !config.body && !config.image) return null;
       return (
         <section className="max-w-6xl mx-auto px-4 py-6">
+          {config.image && (
+            <img src={config.image} alt="" className="w-full max-h-64 object-cover rounded-lg mb-3" />
+          )}
           {config.heading && (
             <h2 className="font-display text-xl text-gold mb-2">{config.heading}</h2>
           )}

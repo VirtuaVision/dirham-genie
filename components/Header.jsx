@@ -19,33 +19,33 @@ export default async function Header() {
   return (
     <header className="bg-ink border-b border-gold/20 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-ink/90">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 group">
-              <img
-                src="/logo-dirham-genie.png"
-                alt="Dirham Genie"
-                className="h-10 w-10 rounded-full object-cover"
-              />
-              <span className="font-display text-xl tracking-wide gold-gradient-text">
+        <div className="flex items-center justify-between h-16 gap-4">
+          <Link href="/" className="flex items-center gap-2 group shrink-0">
+            <img
+              src="/logo-dirham-genie.png"
+              alt="Dirham Genie"
+              className="h-10 w-10 rounded-full object-cover lamp-glow"
+            />
+            <div className="leading-tight">
+              <span className="font-display text-xl tracking-wide gold-gradient-text block">
                 Dirham Genie
               </span>
-            </Link>
-          </div>
+              <span className="hidden sm:block text-[11px] text-cream/40">
+                Shop Smarter, Save More.
+              </span>
+            </div>
+          </Link>
 
-          <form action="/search" className="hidden md:flex flex-1 max-w-md mx-6">
-            <input
-              type="text"
-              name="q"
-              placeholder={t(locale, "search")}
-              className="w-full rounded-l-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-r-md bg-gold px-4 text-sm font-semibold text-ink hover:bg-gold-bright transition-colors"
-            >
-              Search
-            </button>
+          <form action="/search" className="hidden md:flex flex-1 max-w-md items-center">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                name="q"
+                placeholder={t(locale, "search")}
+                className="w-full rounded-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/40 text-sm">🔍</span>
+            </div>
           </form>
 
           <nav className="hidden lg:flex items-center gap-5 text-sm">
@@ -65,18 +65,35 @@ export default async function Header() {
             <LanguageSwitcher locale={locale} />
           </nav>
 
-          <div className="flex items-center gap-2 ml-2">
+          <div className="flex items-center gap-1 shrink-0">
+            <Link
+              href="/wishlist"
+              aria-label="Wishlist"
+              className="w-9 h-9 flex items-center justify-center rounded-full text-cream/70 hover:text-gold hover:bg-white/5 transition-colors"
+            >
+              ♡
+            </Link>
+            <Link
+              href="/admin/login"
+              aria-label="Admin"
+              className="w-9 h-9 flex items-center justify-center rounded-full text-cream/70 hover:text-gold hover:bg-white/5 transition-colors"
+            >
+              👤
+            </Link>
             <ThemeToggle />
           </div>
         </div>
 
         <form action="/search" className="md:hidden pb-3 flex">
-          <input
-            type="text"
-            name="q"
-            placeholder={t(locale, "search")}
-            className="w-full rounded-l-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
-          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              name="q"
+              placeholder={t(locale, "search")}
+              className="w-full rounded-l-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
+            />
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/40 text-sm">🔍</span>
+          </div>
           <button
             type="submit"
             className="rounded-r-md bg-gold px-4 text-sm font-semibold text-ink"

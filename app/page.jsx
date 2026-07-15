@@ -228,6 +228,7 @@ function BlockRenderer({ block, context }) {
       );
 
     default:
-      return null;
+  
+    return null;
   }
 }

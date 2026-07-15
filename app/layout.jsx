@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import CookieConsent from "@/components/CookieConsent";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import ConditionalChrome from "@/components/ConditionalChrome";
 import { getLocale } from "@/lib/i18n";
 
 const display = Cinzel({
@@ -65,9 +66,13 @@ export default function RootLayout({ children }) {
         </Script>
         <GoogleAnalytics />
         <ServiceWorkerRegister />
-        <Header />
+        <ConditionalChrome>
+          <Header />
+        </ConditionalChrome>
         <main className="flex-1">{children}</main>
-        <Footer />
+        <ConditionalChrome>
+          <Footer />
+        </ConditionalChrome>
         <CookieConsent />
       </body>
     </html>

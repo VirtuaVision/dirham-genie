@@ -7,27 +7,35 @@ import AmazonLiveResults from "@/components/AmazonLiveResults";
 
 export const revalidate = 0;
 
+function countDiscounted(products) {
+  return products.filter((p) => p.list_price && p.list_price > p.price).length;
+}
+
 async function getLiveAmazonResults(query) {
   try {
-    const results = await searchProductsByKeyword(query);
-    const ranked = rankBestProducts(results, 6);
+    let best = [];
+    let bestDiscountCount = -1;
 
     // Amazon's search endpoint doesn't reliably include savings/list-price
-    // data on every call for the same query — sometimes a refetch a moment
-    // later returns it and sometimes it doesn't. If this response came back
-    // unusually sparse (almost nothing has a discount), try once more
-    // rather than showing a mostly-discount-less set to visitors.
-    const withDiscount = ranked.filter((p) => p.list_price && p.list_price > p.price).length;
-    if (ranked.length > 0 && withDiscount === 0) {
-      const retry = await searchProductsByKeyword(query);
-      const rerankedRetry = rankBestProducts(retry, 6);
-      const retryWithDiscount = rerankedRetry.filter(
-        (p) => p.list_price && p.list_price > p.price
-      ).length;
-      if (retryWithDiscount > 0) return rerankedRetry;
+    // data on every call for the same query — it can come back sparse (or
+    // completely without discounts) even a moment after a call that had
+    // plenty. Try a few times and keep whichever attempt actually returned
+    // the most discount data, instead of settling for the first response.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const results = await searchProductsByKeyword(query);
+      const ranked = rankBestProducts(results, 6);
+      const discountCount = countDiscounted(ranked);
+
+      if (discountCount > bestDiscountCount) {
+        best = ranked;
+        bestDiscountCount = discountCount;
+      }
+
+      // Good enough — most results have a discount, no need to keep trying.
+      if (discountCount >= Math.ceil(ranked.length / 2)) break;
     }
 
-    return ranked;
+    return best;
   } catch {
     // Amazon keys not configured yet, or the API call failed — fail quietly,
     // the page still works fine with just local results.

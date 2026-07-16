@@ -27,7 +27,7 @@ export default function ProductCard({ product }) {
           </div>
         )}
         {discount && (
-          <span className="absolute top-2 left-2 bg-deal-green text-white text-xs font-bold px-2 py-1 rounded">
+          <span className="absolute top-2 left-2 bg-[#E85D3D] text-white text-xs font-bold px-2 py-1 rounded">
             -{discount}%
           </span>
         )}

@@ -8,6 +8,21 @@
 import Link from "next/link";
 
 export default function PrimePromoBanner({ config = {} }) {
+  if (config.image) {
+    return (
+      <section className="max-w-6xl mx-auto px-4 py-4">
+        <Link
+          href="https://www.amazon.ae/amazonprime"
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          className="block rounded-xl overflow-hidden border border-gold/20"
+        >
+          <img src={config.image} alt="Amazon Prime" className="w-full h-auto" />
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section className="max-w-6xl mx-auto px-4 py-4">
       <div className="rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 p-6 md:p-8 text-white flex items-center justify-between gap-6 overflow-hidden">
@@ -26,15 +41,7 @@ export default function PrimePromoBanner({ config = {} }) {
             Join Prime &amp; Save →
           </Link>
         </div>
-        {config.image ? (
-          <img
-            src={config.image}
-            alt=""
-            className="hidden md:block w-32 h-32 object-contain shrink-0"
-          />
-        ) : (
-          <span className="hidden md:block text-6xl opacity-90 shrink-0">📦</span>
-        )}
+        <span className="hidden md:block text-6xl opacity-90 shrink-0">📦</span>
       </div>
     </section>
   );

@@ -116,7 +116,9 @@ function BlockRenderer({ block, context }) {
                 UAE&apos;s deal-hunting genie
               </p>
               <h1 className="font-display text-4xl md:text-5xl leading-tight">
-                Unlocking the <span className="gold-gradient-text">Best Deals, Every Day</span>
+                <span className="block">Unlocking the</span>
+                <span className="block gold-gradient-text">Best Deals,</span>
+                <span className="block">Every Day</span>
               </h1>
               <p className="text-cream/70 mt-4 max-w-md">{t(locale, "heroSubtitle")}</p>
 

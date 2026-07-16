@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getLocale, t } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
+import { getSiteSetting } from "@/lib/siteSettings";
 
 async function getCategories() {
   const { data } = await supabase
@@ -13,7 +14,10 @@ async function getCategories() {
 }
 
 export default async function Header() {
-  const categories = await getCategories();
+  const [categories, logoUrl] = await Promise.all([
+    getCategories(),
+    getSiteSetting("site_logo", "/logo-dirham-genie.png"),
+  ]);
   const locale = getLocale();
 
   return (
@@ -22,7 +26,7 @@ export default async function Header() {
         <div className="flex items-center justify-between h-16 gap-4">
           <Link href="/" className="flex items-center gap-2 group shrink-0">
             <img
-              src="/logo-dirham-genie.png"
+              src={logoUrl}
               alt="Dirham Genie"
               className="h-10 w-10 rounded-full object-cover lamp-glow"
             />
@@ -98,8 +102,7 @@ export default async function Header() {
             type="submit"
             className="rounded-r-md bg-gold px-4 text-sm font-semibold text-ink"
           >
-       
-     Go
+            Go
           </button>
         </form>
       </div>

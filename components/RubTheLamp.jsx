@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatAed } from "@/lib/formatCurrency";
 
-export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish" }) {
+export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish", hideLampImage = false }) {
   const [loading, setLoading] = useState(false);
   const [product, setProduct] = useState(null);
   const [error, setError] = useState(null);
@@ -30,24 +30,25 @@ export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish" }) 
 
   return (
     <div className="flex flex-col items-center text-center gap-6">
-      <div className="relative">
-        <span className="absolute -top-2 -left-6 text-gold animate-sparkle text-xl">✦</span>
-        <span className="absolute -top-4 right-0 text-gold-bright animate-sparkle text-sm" style={{ animationDelay: "0.6s" }}>✦</span>
-        <span className="absolute top-6 -right-8 text-gold animate-sparkle text-lg" style={{ animationDelay: "1.2s" }}>✦</span>
-        <button
-          onClick={rubTheLamp}
-          disabled={loading}
-          className="hover:scale-105 active:scale-95 transition-transform cursor-pointer select-none"
-          aria-label="Rub the lamp for a surprise deal"
-        >
-          <img
-            src="/lamp-hero-1.png"
-            alt="Magic lamp"
-            className="w-40 md:w-56 lamp-glow"
-          />
-        </button>
-      </div>
-
+      {!hideLampImage && (
+        <div className="relative">
+          <span className="absolute -top-2 -left-6 text-gold animate-sparkle text-xl">✦</span>
+          <span className="absolute -top-4 right-0 text-gold-bright animate-sparkle text-sm" style={{ animationDelay: "0.6s" }}>✦</span>
+          <span className="absolute top-6 -right-8 text-gold animate-sparkle text-lg" style={{ animationDelay: "1.2s" }}>✦</span>
+          <button
+            onClick={rubTheLamp}
+            disabled={loading}
+            className="hover:scale-105 active:scale-95 transition-transform cursor-pointer select-none"
+            aria-label="Rub the lamp for a surprise deal"
+          >
+            <img
+              src="/lamp-hero-1.png"
+              alt="Magic lamp"
+              className="w-40 md:w-56 lamp-glow"
+            />
+          </button>
+        </div>
+      )}
       <button
         onClick={rubTheLamp}
         disabled={loading}

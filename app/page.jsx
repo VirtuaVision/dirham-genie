@@ -178,13 +178,13 @@ function BlockRenderer({ block, context }) {
     }
 
     case "prime_banner":
-      return <PrimePromoBanner />;
+      return <PrimePromoBanner config={config} />;
 
     case "trending_carousel":
       return <TrendingCarousel products={featured} />;
 
     case "feature_cards":
-      return <FeatureCards />;
+      return <FeatureCards config={config} />;
 
     case "category_strip":
       return <CategoryIconStrip categories={categories} />;
@@ -228,7 +228,6 @@ function BlockRenderer({ block, context }) {
       );
 
     default:
-  
-    return null;
+      return null;
   }
 }

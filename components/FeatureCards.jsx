@@ -29,19 +29,25 @@ const CARDS = [
   },
 ];
 
-export default function FeatureCards() {
+export default function FeatureCards({ config = {} }) {
+  const images = [config.card1_image, config.card2_image, config.card3_image];
+
   return (
     <section className="max-w-6xl mx-auto px-4 py-4">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {CARDS.map((card) => (
+        {CARDS.map((card, i) => (
           <Link
             key={card.title}
             href={card.href}
             className={`rounded-xl border p-5 ${card.accent} hover:brightness-105 transition-all`}
           >
-            <span className={`inline-flex w-9 h-9 rounded-full items-center justify-center text-base mb-3 ${card.iconBg}`}>
-              {card.icon}
-            </span>
+            {images[i] ? (
+              <img src={images[i]} alt="" className="w-full h-28 object-cover rounded-lg mb-3" />
+            ) : (
+              <span className={`inline-flex w-9 h-9 rounded-full items-center justify-center text-base mb-3 ${card.iconBg}`}>
+                {card.icon}
+              </span>
+            )}
             <p className="font-display text-lg text-cream mb-1">{card.title}</p>
             <p className="text-sm text-cream/60 mb-3">{card.subtitle}</p>
             <span className="text-sm font-semibold text-gold">Explore →</span>

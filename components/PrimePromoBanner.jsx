@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 
-export default function PrimePromoBanner() {
+export default function PrimePromoBanner({ config = {} }) {
   return (
     <section className="max-w-6xl mx-auto px-4 py-4">
       <div className="rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 p-6 md:p-8 text-white flex items-center justify-between gap-6 overflow-hidden">
@@ -26,7 +26,15 @@ export default function PrimePromoBanner() {
             Join Prime &amp; Save →
           </Link>
         </div>
-        <span className="hidden md:block text-6xl opacity-90 shrink-0">📦</span>
+        {config.image ? (
+          <img
+            src={config.image}
+            alt=""
+            className="hidden md:block w-32 h-32 object-contain shrink-0"
+          />
+        ) : (
+          <span className="hidden md:block text-6xl opacity-90 shrink-0">📦</span>
+        )}
       </div>
     </section>
   );

@@ -104,7 +104,7 @@ function BlockRenderer({ block, context }) {
                 className="absolute inset-0 bg-cover bg-center"
                 style={{ backgroundImage: `url(${config.backgroundImage})` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-ink/50 via-ink/15 to-transparent" />
             </>
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-gold/15 via-ink-lighter to-transparent" />

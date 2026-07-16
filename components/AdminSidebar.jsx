@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 const links = [
   { href: "/admin", label: "Dashboard" },
@@ -16,11 +18,24 @@ const links = [
   { href: "/admin/social-post", label: "Social Post Generator" },
   { href: "/admin/sync-logs", label: "Sync Logs" },
   { href: "/admin/team", label: "Team Access" },
+  { href: "/admin/settings", label: "Site Settings" },
 ];
 
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [logoUrl, setLogoUrl] = useState("/logo-dirham-genie.png");
+
+  useEffect(() => {
+    supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "site_logo")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.value) setLogoUrl(data.value);
+      });
+  }, []);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -30,9 +45,16 @@ export default function AdminSidebar() {
 
   return (
     <aside className="w-full md:w-56 shrink-0 md:border-r border-gold/15 md:pr-4 mb-6 md:mb-0">
-      <div className="font-display text-lg text-gold mb-6 hidden md:block">
-        Dirham Genie
-        <div className="text-xs text-cream/40 font-body">Admin Panel</div>
+      <div className="flex items-center gap-2 mb-6">
+        <img
+          src={logoUrl}
+          alt="Dirham Genie"
+          className="h-9 w-9 rounded-full object-cover border border-gold/30 lamp-glow"
+        />
+        <div className="hidden md:block">
+          <div className="font-display text-lg gold-gradient-text leading-tight">Dirham Genie</div>
+          <div className="text-xs text-cream/40 font-body">Admin Panel</div>
+        </div>
       </div>
       <nav className="flex md:flex-col gap-2 flex-wrap">
         {links.map((link) => {

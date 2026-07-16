@@ -18,6 +18,19 @@ const ICON_MAP = {
   "sports-outdoors": "⚽",
 };
 
+const COLOR_MAP = {
+  electronics: "bg-sky-100",
+  fashion: "bg-blue-100",
+  watches: "bg-amber-100",
+  "home-kitchen": "bg-rose-100",
+  beauty: "bg-pink-100",
+  "beauty-personal-care": "bg-pink-100",
+  luggage: "bg-sky-100",
+  toys: "bg-amber-100",
+  "toys-games": "bg-amber-100",
+  "sports-outdoors": "bg-slate-100",
+};
+
 export default function CategoryIconStrip({ categories }) {
   if (!categories || categories.length === 0) return null;
 
@@ -32,7 +45,7 @@ export default function CategoryIconStrip({ categories }) {
             href={`/category/${c.slug}`}
             className="flex flex-col items-center gap-2 shrink-0 group"
           >
-            <span className="w-14 h-14 rounded-full bg-ink-lighter border border-gold/20 flex items-center justify-center text-2xl group-hover:border-gold transition-colors">
+            <span className={`w-14 h-14 rounded-full border border-gold/20 flex items-center justify-center text-2xl group-hover:border-gold transition-colors ${COLOR_MAP[c.slug] || "bg-ink-lighter"}`}>
               {ICON_MAP[c.slug] || "🏷️"}
             </span>
             <span className="text-xs text-cream/70 group-hover:text-gold transition-colors whitespace-nowrap">

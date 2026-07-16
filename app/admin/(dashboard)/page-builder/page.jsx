@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { BLOCK_TYPES } from "@/lib/homepageBlocks";
+import ImageUploadField from "@/components/admin/ImageUploadField";
 
 export default function PageBuilderPage() {
   const [blocks, setBlocks] = useState([]);
@@ -236,6 +237,11 @@ function BlockConfigForm({ block, fields, onSave }) {
               />
               Enabled
             </label>
+          ) : field.type === "image" ? (
+            <ImageUploadField
+              value={values[field.key] ?? field.default}
+              onChange={(url) => setValues((v) => ({ ...v, [field.key]: url }))}
+            />
           ) : field.type === "textarea" ? (
             <textarea
               rows={3}

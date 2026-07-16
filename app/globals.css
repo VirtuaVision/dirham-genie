@@ -5,14 +5,14 @@
 /* ===== Theme variables ===== */
 /* Light is the default theme. Dark applies when <html data-theme="dark">. */
 :root {
-  --color-ink: 242 240 234;          /* ash white page background */
-  --color-ink-light: 250 248 244;    /* card surface */
-  --color-ink-lighter: 242 228 216;  /* light peach — inputs, image backgrounds */
-  --color-cream: 58 51 46;           /* warm dark brown text */
-  --color-gold: 201 123 90;          /* terracotta peach accent */
-  --color-gold-bright: 232 146 124;  /* lighter peach — buttons */
-  --color-gold-dim: 168 96 68;
-  --color-deal-green: 122 154 110;   /* muted sage green — fits the warm palette */
+  --color-ink: 250 247 242;          /* warm cream page background */
+  --color-ink-light: 255 255 255;    /* white card surface (creates the two-tone contrast) */
+  --color-ink-lighter: 235 221 206;  /* warm mocha — inputs, accents, alternating sections */
+  --color-cream: 43 34 28;           /* warm charcoal-brown text */
+  --color-gold: 234 88 12;           /* vivid orange accent */
+  --color-gold-bright: 249 115 22;
+  --color-gold-dim: 194 65 12;
+  --color-deal-green: 22 163 74;
 }
 
 [data-theme="dark"] {

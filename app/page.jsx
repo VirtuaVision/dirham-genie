@@ -147,7 +147,7 @@ function BlockRenderer({ block, context }) {
               </div>
             </div>
 
-            <RubTheLamp label={t(locale, "rubTheLamp")} />
+            <RubTheLamp label={t(locale, "rubTheLamp")} hideLampImage={!!config.backgroundImage} />
           </div>
         </section>
       );

@@ -3,7 +3,7 @@ import NewsletterForm from "@/components/NewsletterForm";
 
 export default function Footer() {
   return (
-    <footer className="bg-ink border-t border-gold/20 mt-16">
+    <footer data-theme="dark" className="bg-ink border-t border-gold/20 mt-16">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="mb-10">
           <NewsletterForm />

@@ -84,3 +84,22 @@ textarea:focus-visible {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgb(var(--color-gold) / 0.6), transparent);
 }
+
+/* Admin panel background + logo, swapped per theme via data-theme on <html>.
+   The actual image URLs come from admin-uploaded settings (CSS custom
+   properties set inline per-page) — this just decides which one shows. */
+.admin-bg-layer {
+  background-image: var(--admin-bg-light);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+[data-theme="dark"] .admin-bg-layer {
+  background-image: var(--admin-bg-dark);
+}
+
+.admin-logo-dark { display: none; }
+.admin-logo-light { display: block; }
+[data-theme="dark"] .admin-logo-light { display: none; }
+[data-theme="dark"] .admin-logo-dark { display: block; }

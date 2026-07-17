@@ -7,6 +7,10 @@ import ImageUploadField from "@/components/admin/ImageUploadField";
 
 export default function SiteSettingsPage() {
   const [logoUrl, setLogoUrl] = useState("");
+  const [adminBgLight, setAdminBgLight] = useState("");
+  const [adminBgDark, setAdminBgDark] = useState("");
+  const [adminLogoLight, setAdminLogoLight] = useState("");
+  const [adminLogoDark, setAdminLogoDark] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -15,23 +19,40 @@ export default function SiteSettingsPage() {
   useEffect(() => {
     fetch("/api/admin/site-settings")
       .then((r) => r.json())
-      .then((json) => setLogoUrl(json.settings?.site_logo || ""))
+      .then((json) => {
+        const s = json.settings || {};
+        setLogoUrl(s.site_logo || "");
+        setAdminBgLight(s.admin_bg_light || "");
+        setAdminBgDark(s.admin_bg_dark || "");
+        setAdminLogoLight(s.admin_logo_light || "");
+        setAdminLogoDark(s.admin_logo_dark || "");
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleSave() {
+  async function saveSetting(key, value) {
+    const res = await fetch("/api/admin/site-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, value }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error);
+  }
+
+  async function handleSaveAll() {
     setSaving(true);
     setError(null);
     setSaved(false);
     try {
-      const res = await fetch("/api/admin/site-settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "site_logo", value: logoUrl }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      await Promise.all([
+        saveSetting("site_logo", logoUrl),
+        saveSetting("admin_bg_light", adminBgLight),
+        saveSetting("admin_bg_dark", adminBgDark),
+        saveSetting("admin_logo_light", adminLogoLight),
+        saveSetting("admin_logo_dark", adminLogoDark),
+      ]);
       setSaved(true);
     } catch (err) {
       setError(err.message);
@@ -61,21 +82,51 @@ export default function SiteSettingsPage() {
       {loading ? (
         <p className="text-cream/50 text-sm">Loading...</p>
       ) : (
-        <div className="card-surface rounded-lg p-5">
-          <ImageUploadField
-            label="Site Logo"
-            value={logoUrl}
-            onChange={setLogoUrl}
-          />
-          <p className="text-xs text-cream/40 mt-2 mb-4">
-            Shows in the header, admin sidebar, and browser tab. Square images work best.
-          </p>
+        <div className="card-surface rounded-lg p-5 space-y-6">
+          <div>
+            <ImageUploadField
+              label="Site Logo (public website header)"
+              value={logoUrl}
+              onChange={setLogoUrl}
+            />
+          </div>
+
+          <div className="border-t border-gold/15 pt-5">
+            <p className="text-sm text-cream font-semibold mb-3">Admin Panel Theme</p>
+            <p className="text-xs text-cream/40 mb-4">
+              These apply across every admin page and the login screen. Upload both a light and
+              dark version — the correct one shows automatically based on the light/dark toggle.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-5">
+              <ImageUploadField
+                label="Background — Light theme"
+                value={adminBgLight}
+                onChange={setAdminBgLight}
+              />
+              <ImageUploadField
+                label="Background — Dark theme"
+                value={adminBgDark}
+                onChange={setAdminBgDark}
+              />
+              <ImageUploadField
+                label="Logo — Light theme"
+                value={adminLogoLight}
+                onChange={setAdminLogoLight}
+              />
+              <ImageUploadField
+                label="Logo — Dark theme"
+                value={adminLogoDark}
+                onChange={setAdminLogoDark}
+              />
+            </div>
+          </div>
+
           <button
-            onClick={handleSave}
+            onClick={handleSaveAll}
             disabled={saving}
             className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2.5 text-sm disabled:opacity-60"
           >
-            {saving ? "Saving..." : "Save Logo"}
+            {saving ? "Saving..." : "Save All Settings"}
           </button>
         </div>
       )}

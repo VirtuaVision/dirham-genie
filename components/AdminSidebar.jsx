@@ -17,6 +17,7 @@ const links = [
   { href: "/admin/posts", label: "Blog Posts" },
   { href: "/admin/social-post", label: "Social Post Generator" },
   { href: "/admin/sync-logs", label: "Sync Logs" },
+{ href: "/admin/mega-deals-cleanup", label: "Mega Deals Cleanup" },
   { href: "/admin/team", label: "Team Access" },
   { href: "/admin/settings", label: "Site Settings" },
 ];

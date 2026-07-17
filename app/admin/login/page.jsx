@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -11,6 +13,21 @@ export default function AdminLoginPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [forgotNote, setForgotNote] = useState(false);
+  const [bg, setBg] = useState({ light: "", dark: "" });
+  const [logo, setLogo] = useState({ light: "", dark: "" });
+
+  useEffect(() => {
+    supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["admin_bg_light", "admin_bg_dark", "admin_logo_light", "admin_logo_dark"])
+      .then(({ data }) => {
+        const map = {};
+        (data || []).forEach((row) => (map[row.key] = row.value));
+        setBg({ light: map.admin_bg_light || "", dark: map.admin_bg_dark || "" });
+        setLogo({ light: map.admin_logo_light || "", dark: map.admin_logo_dark || "" });
+      });
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -37,20 +54,41 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="relative min-h-[90vh] overflow-hidden flex flex-col items-center justify-center px-4 py-12">
-      {/* Decorative dotted pattern, top-left */}
-      <div
-        className="absolute top-0 left-0 w-40 h-40 opacity-30 pointer-events-none"
-        style={{
-          backgroundImage: "radial-gradient(rgb(var(--color-gold)) 1px, transparent 1px)",
-          backgroundSize: "14px 14px",
-        }}
-      />
+    <div
+      className="admin-bg-layer relative min-h-[90vh] overflow-hidden flex flex-col items-center justify-center px-4 py-12"
+      style={{
+        "--admin-bg-light": bg.light ? `url(${bg.light})` : "none",
+        "--admin-bg-dark": bg.dark ? `url(${bg.dark})` : "none",
+      }}
+    >
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
+      {/* Decorative dotted pattern, top-left — only when no real photo is set */}
+      {!bg.light && !bg.dark && (
+        <div
+          className="absolute top-0 left-0 w-40 h-40 opacity-30 pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(rgb(var(--color-gold)) 1px, transparent 1px)",
+            backgroundSize: "14px 14px",
+          }}
+        />
+      )}
 
       {/* Logo badge */}
       <div className="relative z-10 mb-6">
-        <div className="w-40 h-40 rounded-full border-2 border-gold/40 bg-ink-light flex flex-col items-center justify-center shadow-sm">
-          <img src="/logo-dirham-genie.png" alt="Dirham Genie" className="w-24 h-24 object-contain lamp-glow" />
+        <div className="w-40 h-40 rounded-full border-2 border-gold/40 bg-ink-light flex flex-col items-center justify-center shadow-sm overflow-hidden">
+          <img
+            src={logo.light || "/logo-dirham-genie.png"}
+            alt="Dirham Genie"
+            className="admin-logo-light w-full h-full object-cover"
+          />
+          <img
+            src={logo.dark || logo.light || "/logo-dirham-genie.png"}
+            alt="Dirham Genie"
+            className="admin-logo-dark w-full h-full object-cover"
+          />
         </div>
       </div>
 
@@ -143,28 +181,30 @@ export default function AdminLoginPage() {
         <p className="text-center text-xs text-cream/40">🛡️ Your data is safe with us</p>
       </form>
 
-      {/* Decorative skyline silhouette */}
-      <svg
-        className="absolute bottom-0 left-0 w-full h-32 opacity-20 pointer-events-none"
-        viewBox="0 0 1024 140"
-        preserveAspectRatio="none"
-        fill="rgb(var(--color-gold))"
-      >
-        <rect x="60" y="70" width="14" height="70" />
-        <rect x="90" y="50" width="10" height="90" />
-        <polygon points="150,140 150,60 175,40 200,60 200,140" />
-        <rect x="230" y="90" width="16" height="50" />
-        <rect x="260" y="30" width="18" height="110" />
-        <rect x="290" y="65" width="12" height="75" />
-        <rect x="480" y="0" width="20" height="140" />
-        <rect x="510" y="55" width="14" height="85" />
-        <rect x="540" y="80" width="16" height="60" />
-        <rect x="700" y="60" width="14" height="80" />
-        <rect x="730" y="35" width="18" height="105" />
-        <rect x="760" y="75" width="12" height="65" />
-        <rect x="850" y="90" width="16" height="50" />
-        <rect x="880" y="55" width="12" height="85" />
-      </svg>
+      {/* Decorative skyline silhouette — only when no real photo is set */}
+      {!bg.light && !bg.dark && (
+        <svg
+          className="absolute bottom-0 left-0 w-full h-32 opacity-20 pointer-events-none"
+          viewBox="0 0 1024 140"
+          preserveAspectRatio="none"
+          fill="rgb(var(--color-gold))"
+        >
+          <rect x="60" y="70" width="14" height="70" />
+          <rect x="90" y="50" width="10" height="90" />
+          <polygon points="150,140 150,60 175,40 200,60 200,140" />
+          <rect x="230" y="90" width="16" height="50" />
+          <rect x="260" y="30" width="18" height="110" />
+          <rect x="290" y="65" width="12" height="75" />
+          <rect x="480" y="0" width="20" height="140" />
+          <rect x="510" y="55" width="14" height="85" />
+          <rect x="540" y="80" width="16" height="60" />
+          <rect x="700" y="60" width="14" height="80" />
+          <rect x="730" y="35" width="18" height="105" />
+          <rect x="760" y="75" width="12" height="65" />
+          <rect x="850" y="90" width="16" height="50" />
+          <rect x="880" y="55" width="12" height="85" />
+        </svg>
+      )}
     </div>
   );
 }

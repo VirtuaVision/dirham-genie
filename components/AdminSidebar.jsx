@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const links = [
   { href: "/admin", label: "Dashboard" },
@@ -17,7 +18,6 @@ const links = [
   { href: "/admin/posts", label: "Blog Posts" },
   { href: "/admin/social-post", label: "Social Post Generator" },
   { href: "/admin/sync-logs", label: "Sync Logs" },
-{ href: "/admin/mega-deals-cleanup", label: "Mega Deals Cleanup" },
   { href: "/admin/team", label: "Team Access" },
   { href: "/admin/settings", label: "Site Settings" },
 ];
@@ -26,6 +26,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [logoUrl, setLogoUrl] = useState("/logo-dirham-genie.png");
+  const [adminLogo, setAdminLogo] = useState({ light: "", dark: "" });
 
   useEffect(() => {
     supabase
@@ -35,6 +36,15 @@ export default function AdminSidebar() {
       .maybeSingle()
       .then(({ data }) => {
         if (data?.value) setLogoUrl(data.value);
+      });
+    supabase
+      .from("site_settings")
+      .select("key, value")
+      .in("key", ["admin_logo_light", "admin_logo_dark"])
+      .then(({ data }) => {
+        const map = {};
+        (data || []).forEach((row) => (map[row.key] = row.value));
+        setAdminLogo({ light: map.admin_logo_light || "", dark: map.admin_logo_dark || "" });
       });
   }, []);
 
@@ -48,14 +58,20 @@ export default function AdminSidebar() {
     <aside className="w-full md:w-56 shrink-0 md:border-r border-gold/15 md:pr-4 mb-6 md:mb-0">
       <div className="flex items-center gap-2 mb-6">
         <img
-          src={logoUrl}
+          src={adminLogo.light || logoUrl}
           alt="Dirham Genie"
-          className="h-9 w-9 rounded-full object-cover border border-gold/30 lamp-glow"
+          className="admin-logo-light h-9 w-9 rounded-full object-cover border border-gold/30 lamp-glow"
         />
-        <div className="hidden md:block">
+        <img
+          src={adminLogo.dark || adminLogo.light || logoUrl}
+          alt="Dirham Genie"
+          className="admin-logo-dark h-9 w-9 rounded-full object-cover border border-gold/30 lamp-glow"
+        />
+        <div className="hidden md:block flex-1">
           <div className="font-display text-lg gold-gradient-text leading-tight">Dirham Genie</div>
           <div className="text-xs text-cream/40 font-body">Admin Panel</div>
         </div>
+        <ThemeToggle />
       </div>
       <nav className="flex md:flex-col gap-2 flex-wrap">
         {links.map((link) => {

@@ -56,16 +56,16 @@ export default function AdminSidebar() {
 
   return (
     <aside className="w-full md:w-56 shrink-0 md:border-r border-gold/15 md:pr-4 mb-6 md:mb-0">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-3 mb-6">
         <img
           src={adminLogo.light || logoUrl}
           alt="Dirham Genie"
-          className="admin-logo-light h-9 w-9 rounded-full object-cover border border-gold/30 lamp-glow"
+          className="admin-logo-light h-16 w-16 rounded-full object-cover border-2 border-gold/30 lamp-glow"
         />
         <img
           src={adminLogo.dark || adminLogo.light || logoUrl}
           alt="Dirham Genie"
-          className="admin-logo-dark h-9 w-9 rounded-full object-cover border border-gold/30 lamp-glow"
+          className="admin-logo-dark h-16 w-16 rounded-full object-cover border-2 border-gold/30 lamp-glow"
         />
         <div className="hidden md:block flex-1">
           <div className="font-display text-lg gold-gradient-text leading-tight">Dirham Genie</div>

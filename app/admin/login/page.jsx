@@ -1,170 +1,270 @@
-"use client";
+// Save as: app/page.jsx (replaces the whole file)
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+import Link from "next/link";
+import ProductCard from "@/components/ProductCard";
+import RubTheLamp from "@/components/RubTheLamp";
+import Disclosure from "@/components/Disclosure";
+import DealAlertForm from "@/components/DealAlertForm";
+import TrendingNow from "@/components/TrendingNow";
+import RecentlyViewed from "@/components/RecentlyViewed";
+import EmptyState from "@/components/EmptyState";
+import TrustBar from "@/components/TrustBar";
+import CategorySidebar from "@/components/CategorySidebar";
+import BannerStrip from "@/components/BannerStrip";
+import PrimePromoBanner from "@/components/PrimePromoBanner";
+import TrendingCarousel from "@/components/TrendingCarousel";
+import FeatureCards from "@/components/FeatureCards";
+import CategoryIconStrip from "@/components/CategoryIconStrip";
+import Pagination from "@/components/Pagination";
+import { getLocale, t } from "@/lib/i18n";
 
-export default function AdminLoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [forgotNote, setForgotNote] = useState(false);
+export const revalidate = 60;
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error || "Login failed.");
-      } else {
-        router.push("/admin");
-        router.refresh();
-      }
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
+const PER_PAGE = 40;
+
+async function getData(page) {
+  const from = (page - 1) * PER_PAGE;
+  const to = from + PER_PAGE - 1;
+
+  const [{ data: featured }, { data: recent, count }, { data: categories }, { data: banners }, { data: blocks }] =
+    await Promise.all([
+      supabase
+        .from("products")
+        .select("*")
+        .eq("is_active", true)
+        .eq("is_featured", true)
+        .order("created_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("products")
+        .select("*", { count: "exact" })
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .range(from, to),
+      supabase.from("categories").select("name, slug").order("name"),
+      supabase.from("banners").select("*").eq("is_active", true).order("sort_order"),
+      supabase.from("homepage_blocks").select("*").eq("is_visible", true).order("sort_order"),
+    ]);
+
+  return {
+    featured: featured || [],
+    recent: recent || [],
+    totalRecent: count || 0,
+    categories: categories || [],
+    banners: banners || [],
+    // Fallback layout if the Page Builder table is empty/not set up yet —
+    // matches the site's original fixed layout so nothing breaks.
+    blocks: blocks?.length
+      ? blocks
+      : [
+          { id: "hero", type: "hero", config: {} },
+          { id: "featured", type: "featured_products", config: { heading: "Genie's Picks", limit: 8 } },
+          { id: "grid", type: "product_grid", config: { heading: "Freshly Unlocked", withSidebar: true, paginated: true } },
+          { id: "trust", type: "trust_bar", config: {} },
+          { id: "recent", type: "recently_viewed", config: {} },
+          { id: "trending", type: "trending", config: {} },
+          { id: "newsletter", type: "newsletter", config: {} },
+        ],
+  };
+}
+
+export default async function HomePage({ searchParams }) {
+  const page = Math.max(1, parseInt(searchParams?.page) || 1);
+  const { featured, recent, totalRecent, categories, banners, blocks } = await getData(page);
+  const locale = getLocale();
+  const totalPages = Math.ceil(totalRecent / PER_PAGE);
+
+  const context = { featured, recent, totalRecent, categories, banners, page, totalPages, locale };
 
   return (
-    <div className="relative min-h-[90vh] overflow-hidden flex flex-col items-center justify-center px-4 py-12">
-      {/* Decorative dotted pattern, top-left */}
-      <div
-        className="absolute top-0 left-0 w-40 h-40 opacity-30 pointer-events-none"
-        style={{
-          backgroundImage: "radial-gradient(rgb(var(--color-gold)) 1px, transparent 1px)",
-          backgroundSize: "14px 14px",
-        }}
-      />
+    <div>
+      {blocks.map((block) => (
+        <BlockRenderer key={block.id} block={block} context={context} />
+      ))}
 
-      {/* Logo badge */}
-      <div className="relative z-10 mb-6">
-        <div className="w-40 h-40 rounded-full border-2 border-gold/40 bg-ink-light flex flex-col items-center justify-center shadow-sm">
-          <img src="/logo-dirham-genie.png" alt="Dirham Genie" className="w-24 h-24 object-contain lamp-glow" />
-        </div>
+      <div className="max-w-6xl mx-auto px-4 py-4">
+        <Disclosure compact />
       </div>
-
-      <h1 className="relative z-10 font-display text-3xl text-cream mb-1 text-center">Welcome Back!</h1>
-      <p className="relative z-10 text-cream/50 text-sm mb-8 text-center">
-        Sign in to access your admin panel
-      </p>
-
-      {/* Card */}
-      <form
-        onSubmit={handleSubmit}
-        className="relative z-10 card-surface rounded-2xl p-8 w-full max-w-sm shadow-sm"
-      >
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex-1 h-px bg-gold/25" />
-          <span className="w-10 h-10 rounded-full bg-gold/10 border border-gold/30 flex items-center justify-center text-gold text-lg">
-            🛡️
-          </span>
-          <div className="flex-1 h-px bg-gold/25" />
-        </div>
-
-        {error && (
-          <p className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded p-2 mb-4">
-            {error}
-          </p>
-        )}
-
-        <label className="block text-sm text-cream font-semibold mb-1">Email</label>
-        <div className="relative mb-4">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/40 text-sm">✉️</span>
-          <input
-            type="email"
-            required
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md bg-ink-lighter border border-gold/30 pl-10 pr-3 py-2.5 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
-          />
-        </div>
-
-        <label className="block text-sm text-cream font-semibold mb-1">Password</label>
-        <div className="relative mb-2">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/40 text-sm">🔒</span>
-          <input
-            type={showPassword ? "text" : "password"}
-            required
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md bg-ink-lighter border border-gold/30 pl-10 pr-10 py-2.5 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((s) => !s)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-cream/40 hover:text-gold text-sm"
-          >
-            {showPassword ? "🙈" : "👁️"}
-          </button>
-        </div>
-
-        <div className="text-right mb-5">
-          <button
-            type="button"
-            onClick={() => setForgotNote((v) => !v)}
-            className="text-xs text-gold hover:text-gold-bright font-medium"
-          >
-            Forgot Password?
-          </button>
-          {forgotNote && (
-            <p className="text-xs text-cream/50 mt-2 text-left">
-              Ask another admin with Team Access to reset it for you, or contact whoever manages your Supabase project.
-            </p>
-          )}
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-gold hover:bg-gold-bright text-white font-semibold py-3 text-sm transition-colors disabled:opacity-60"
-        >
-          {loading ? "Signing in..." : "Sign In"}
-        </button>
-
-        <div className="flex items-center gap-3 mt-6 mb-2">
-          <div className="flex-1 h-px bg-gold/15" />
-          <span className="text-xs text-cream/40 uppercase tracking-wide">Secure Access</span>
-          <div className="flex-1 h-px bg-gold/15" />
-        </div>
-        <p className="text-center text-xs text-cream/40">🛡️ Your data is safe with us</p>
-      </form>
-
-      {/* Decorative skyline silhouette */}
-      <svg
-        className="absolute bottom-0 left-0 w-full h-32 opacity-20 pointer-events-none"
-        viewBox="0 0 1024 140"
-        preserveAspectRatio="none"
-        fill="rgb(var(--color-gold))"
-      >
-        <rect x="60" y="70" width="14" height="70" />
-        <rect x="90" y="50" width="10" height="90" />
-        <polygon points="150,140 150,60 175,40 200,60 200,140" />
-        <rect x="230" y="90" width="16" height="50" />
-        <rect x="260" y="30" width="18" height="110" />
-        <rect x="290" y="65" width="12" height="75" />
-        <rect x="480" y="0" width="20" height="140" />
-        <rect x="510" y="55" width="14" height="85" />
-        <rect x="540" y="80" width="16" height="60" />
-        <rect x="700" y="60" width="14" height="80" />
-        <rect x="730" y="35" width="18" height="105" />
-        <rect x="760" y="75" width="12" height="65" />
-        <rect x="850" y="90" width="16" height="50" />
-        <rect x="880" y="55" width="12" height="85" />
-      </svg>
     </div>
   );
+}
+
+function BlockRenderer({ block, context }) {
+  const { featured, recent, totalRecent, categories, banners, page, totalPages, locale } = context;
+  const config = block.config || {};
+
+  switch (block.type) {
+    case "hero":
+      return (
+        <section className="relative overflow-hidden border-b border-gold/15">
+          {config.backgroundImage ? (
+            <>
+              <img
+                src={config.backgroundImage}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-ink/50 via-ink/15 to-transparent" />
+            </>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-gold/15 via-ink-lighter to-transparent" />
+          )}
+
+          <div className="relative max-w-6xl mx-auto px-4 py-16 md:py-20">
+            <div className="max-w-2xl mb-10">
+              <p className="uppercase tracking-[0.2em] text-xs text-gold/80 mb-3">
+                UAE&apos;s deal-hunting genie
+              </p>
+              <h1 className="font-display text-4xl md:text-5xl leading-tight">
+                <span className="block">Unlocking the</span>
+                <span className="block gold-gradient-text">Best Deals,</span>
+                <span className="block">Every Day</span>
+              </h1>
+              <p className="text-cream/70 mt-4 max-w-md">{t(locale, "heroSubtitle")}</p>
+
+              <div className="flex flex-wrap gap-2 mt-5">
+                {["Real Discounts", "Verified Prices", "Smart Shopping"].map((badge) => (
+                  <span
+                    key={badge}
+                    className="text-xs bg-ink-light/80 border border-gold/25 text-cream/80 rounded-full px-3 py-1.5"
+                  >
+                    {badge}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-3 mt-6">
+                <Link
+                  href="/deals/latest"
+                  className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-sm px-5 py-2.5 rounded-md transition-colors"
+                >
+                  Explore Today&apos;s Deals →
+                </Link>
+                <Link
+                  href="/category"
+                  className="inline-flex items-center gap-2 border border-gold/40 text-cream hover:border-gold text-sm font-semibold px-5 py-2.5 rounded-md transition-colors"
+                >
+                  ⊞ Top Categories
+                </Link>
+              </div>
+            </div>
+
+            <RubTheLamp label={t(locale, "rubTheLamp")} hideLampImage={!!config.backgroundImage} />
+          </div>
+        </section>
+      );
+
+    case "featured_products":
+      if (featured.length === 0 || page !== 1) return null;
+      return (
+        <div className="max-w-6xl mx-auto px-4 pt-8">
+          <section className="mb-10">
+            <h2 className="font-display text-2xl text-gold mb-4">
+              {config.heading || "Genie's Picks"}
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {featured.slice(0, config.limit || 8).map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        </div>
+      );
+
+    case "product_grid": {
+      const grid = (
+        <section>
+          <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+            <h2 className="font-display text-2xl text-gold">{config.heading || "Freshly Unlocked"}</h2>
+            <p className="text-xs text-cream/40">{totalRecent} deals total</p>
+          </div>
+          {recent.length === 0 ? (
+            <EmptyState
+              icon="🪔"
+              title="No products yet"
+              subtitle="Once you add products in the admin panel, they'll appear here."
+            />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {recent.map((p) => (
+                  <ProductCard key={p.id} product={p} />
+                ))}
+              </div>
+              {config.paginated !== false && (
+                <Pagination currentPage={page} totalPages={totalPages} basePath="/" />
+              )}
+            </>
+          )}
+        </section>
+      );
+
+      return (
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {config.withSidebar !== false ? (
+            <div className="flex flex-col md:flex-row gap-8">
+              <CategorySidebar categories={categories} />
+              <div className="flex-1 min-w-0">{grid}</div>
+            </div>
+          ) : (
+            grid
+          )}
+        </div>
+      );
+    }
+
+    case "prime_banner":
+      return <PrimePromoBanner config={config} />;
+
+    case "trending_carousel":
+      return <TrendingCarousel products={featured} />;
+
+    case "feature_cards":
+      return <FeatureCards config={config} />;
+
+    case "category_strip":
+      return <CategoryIconStrip categories={categories} />;
+
+    case "banners":
+      return <BannerStrip banners={banners.slice(0, config.limit || 3)} />;
+
+    case "trust_bar":
+      return <TrustBar />;
+
+    case "recently_viewed":
+      return <RecentlyViewed />;
+
+    case "trending":
+      return <TrendingNow />;
+
+    case "newsletter":
+      return (
+        <section className="max-w-6xl mx-auto px-4 py-6">
+          <div className="max-w-md">
+            {config.heading && (
+              <h2 className="font-display text-xl text-gold mb-3">{config.heading}</h2>
+            )}
+            <DealAlertForm />
+          </div>
+        </section>
+      );
+
+    case "text_block":
+      if (!config.heading && !config.body && !config.image) return null;
+      return (
+        <section className="max-w-6xl mx-auto px-4 py-6">
+          {config.image && (
+            <img src={config.image} alt="" className="w-full max-h-64 object-cover rounded-lg mb-3" />
+          )}
+          {config.heading && (
+            <h2 className="font-display text-xl text-gold mb-2">{config.heading}</h2>
+          )}
+          {config.body && <p className="text-cream/70 text-sm whitespace-pre-line">{config.body}</p>}
+        </section>
+      );
+
+    default:
+      return null;
+  }
 }

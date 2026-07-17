@@ -9,6 +9,8 @@ export default function SiteSettingsPage() {
   const [logoUrl, setLogoUrl] = useState("");
   const [adminBgLight, setAdminBgLight] = useState("");
   const [adminBgDark, setAdminBgDark] = useState("");
+  const [adminInnerBgLight, setAdminInnerBgLight] = useState("");
+  const [adminInnerBgDark, setAdminInnerBgDark] = useState("");
   const [adminLogoLight, setAdminLogoLight] = useState("");
   const [adminLogoDark, setAdminLogoDark] = useState("");
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,8 @@ export default function SiteSettingsPage() {
         setLogoUrl(s.site_logo || "");
         setAdminBgLight(s.admin_bg_light || "");
         setAdminBgDark(s.admin_bg_dark || "");
+        setAdminInnerBgLight(s.admin_inner_bg_light || "");
+        setAdminInnerBgDark(s.admin_inner_bg_dark || "");
         setAdminLogoLight(s.admin_logo_light || "");
         setAdminLogoDark(s.admin_logo_dark || "");
       })
@@ -50,6 +54,8 @@ export default function SiteSettingsPage() {
         saveSetting("site_logo", logoUrl),
         saveSetting("admin_bg_light", adminBgLight),
         saveSetting("admin_bg_dark", adminBgDark),
+        saveSetting("admin_inner_bg_light", adminInnerBgLight),
+        saveSetting("admin_inner_bg_dark", adminInnerBgDark),
         saveSetting("admin_logo_light", adminLogoLight),
         saveSetting("admin_logo_dark", adminLogoDark),
       ]);
@@ -92,31 +98,50 @@ export default function SiteSettingsPage() {
           </div>
 
           <div className="border-t border-gold/15 pt-5">
-            <p className="text-sm text-cream font-semibold mb-3">Admin Panel Theme</p>
+            <p className="text-sm text-cream font-semibold mb-3">Login Screen</p>
             <p className="text-xs text-cream/40 mb-4">
-              These apply across every admin page and the login screen. Upload both a light and
-              dark version — the correct one shows automatically based on the light/dark toggle.
+              Background and logo shown only on the admin sign-in page.
             </p>
             <div className="grid sm:grid-cols-2 gap-5">
               <ImageUploadField
-                label="Background — Light theme"
+                label="Login Background — Light theme"
                 value={adminBgLight}
                 onChange={setAdminBgLight}
               />
               <ImageUploadField
-                label="Background — Dark theme"
+                label="Login Background — Dark theme"
                 value={adminBgDark}
                 onChange={setAdminBgDark}
               />
               <ImageUploadField
-                label="Logo — Light theme"
+                label="Login Logo — Light theme"
                 value={adminLogoLight}
                 onChange={setAdminLogoLight}
               />
               <ImageUploadField
-                label="Logo — Dark theme"
+                label="Login Logo — Dark theme"
                 value={adminLogoDark}
                 onChange={setAdminLogoDark}
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-gold/15 pt-5">
+            <p className="text-sm text-cream font-semibold mb-3">Inside Admin Pages</p>
+            <p className="text-xs text-cream/40 mb-4">
+              Background shown on every page once you're logged in — Dashboard, Products,
+              Page Builder, and so on. Separate from the login screen's background.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-5">
+              <ImageUploadField
+                label="Pages Background — Light theme"
+                value={adminInnerBgLight}
+                onChange={setAdminInnerBgLight}
+              />
+              <ImageUploadField
+                label="Pages Background — Dark theme"
+                value={adminInnerBgDark}
+                onChange={setAdminInnerBgDark}
               />
             </div>
           </div>

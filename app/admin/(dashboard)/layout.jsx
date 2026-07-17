@@ -3,8 +3,8 @@ import { getSiteSetting } from "@/lib/siteSettings";
 
 export default async function AdminDashboardLayout({ children }) {
   const [bgLight, bgDark] = await Promise.all([
-    getSiteSetting("admin_bg_light", ""),
-    getSiteSetting("admin_bg_dark", ""),
+    getSiteSetting("admin_inner_bg_light", ""),
+    getSiteSetting("admin_inner_bg_dark", ""),
   ]);
 
   return (

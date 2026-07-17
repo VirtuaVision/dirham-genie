@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
 import slugify from "slugify";
 import { notifyDealAlertSubscribers } from "@/lib/notifyDealAlerts";
+import { autoPostNewProduct } from "@/lib/socialPost";
 
 export async function GET() {
   if (!(await isAdminLoggedIn())) {
@@ -85,6 +86,7 @@ export async function POST(request) {
   }
 
   notifyDealAlertSubscribers(data); // fire-and-forget, doesn't block the response
+  autoPostNewProduct(data); // fire-and-forget, doesn't block the response
 
   return NextResponse.json({ product: data });
 }

@@ -88,23 +88,23 @@ textarea:focus-visible {
 /* Admin panel background + logo, swapped per theme via data-theme on <html>.
    The actual image URLs come from admin-uploaded settings (CSS custom
    properties set inline per-page) — this just decides which one shows. */
-/* Admin panel background — pure CSS (gradient + dot pattern), not an
-   uploaded photo. This guarantees it always fits the page perfectly on
-   any screen size, since there's no fixed-aspect-ratio image being
-   cropped or stretched — it's just drawn at whatever size is needed. */
+/* Admin panel background — a Dubai skyline silhouette drawn as an inline
+   SVG data URI directly in this CSS file (not an uploaded image). It tiles
+   horizontally (repeat-x) at a fixed height, so it can never stretch,
+   crop wrong, or misalign on any screen size — unlike a single photo. */
 .admin-bg-layer {
   background-image:
-    radial-gradient(rgb(var(--color-gold) / 0.18) 1.5px, transparent 1.5px),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='150' viewBox='0 0 420 150'><g fill='%23D4A24C' fill-opacity='0.35'><ellipse cx='30' cy='108' rx='16' ry='7'/><rect x='27' y='108' width='6' height='30'/><ellipse cx='18' cy='118' rx='13' ry='6'/><rect x='15' y='118' width='5' height='20'/><rect x='55' y='95' width='14' height='43' rx='1'/><rect x='75' y='75' width='10' height='63'/><polygon points='115,138 115,58 138,38 161,58 161,138'/><rect x='185' y='100' width='16' height='38'/><rect x='210' y='45' width='18' height='93'/><rect x='232' y='80' width='12' height='58'/><rect x='285' y='15' width='20' height='123'/><rect x='310' y='65' width='14' height='73'/><rect x='335' y='90' width='16' height='48'/><ellipse cx='395' cy='105' rx='16' ry='7'/><rect x='392' y='105' width='6' height='33'/><ellipse cx='383' cy='115' rx='12' ry='6'/><rect x='380' y='115' width='5' height='23'/></g><path d='M0,140 Q105,125 210,140 T420,140 V150 H0 Z' fill='%23D4A24C' fill-opacity='0.18'/></svg>"),
     linear-gradient(160deg, rgb(var(--color-ink-lighter)) 0%, rgb(var(--color-ink)) 55%, rgb(var(--color-ink-lighter)) 100%);
-  background-size: 18px 18px, 100% 100%;
-  background-position: top left, center;
-  background-repeat: repeat, no-repeat;
+  background-size: 420px 150px, 100% 100%;
+  background-position: bottom left, center;
+  background-repeat: repeat-x, no-repeat;
 }
 [data-theme="dark"] .admin-bg-layer {
   background-image:
-    radial-gradient(rgb(var(--color-gold) / 0.3) 1.5px, transparent 1.5px),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='150' viewBox='0 0 420 150'><g fill='%23E8B85C' fill-opacity='0.5'><ellipse cx='30' cy='108' rx='16' ry='7'/><rect x='27' y='108' width='6' height='30'/><ellipse cx='18' cy='118' rx='13' ry='6'/><rect x='15' y='118' width='5' height='20'/><rect x='55' y='95' width='14' height='43' rx='1'/><rect x='75' y='75' width='10' height='63'/><polygon points='115,138 115,58 138,38 161,58 161,138'/><rect x='185' y='100' width='16' height='38'/><rect x='210' y='45' width='18' height='93'/><rect x='232' y='80' width='12' height='58'/><rect x='285' y='15' width='20' height='123'/><rect x='310' y='65' width='14' height='73'/><rect x='335' y='90' width='16' height='48'/><ellipse cx='395' cy='105' rx='16' ry='7'/><rect x='392' y='105' width='6' height='33'/><ellipse cx='383' cy='115' rx='12' ry='6'/><rect x='380' y='115' width='5' height='23'/></g><path d='M0,140 Q105,125 210,140 T420,140 V150 H0 Z' fill='%23E8B85C' fill-opacity='0.25'/></svg>"),
     linear-gradient(160deg, rgb(20 17 12) 0%, rgb(10 9 7) 55%, rgb(20 17 12) 100%);
-  background-size: 18px 18px, 100% 100%;
+  background-size: 420px 150px, 100% 100%;
 }
 
 /* Login-page-only override: targets the admin-bg-layer that contains the

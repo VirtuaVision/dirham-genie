@@ -88,15 +88,23 @@ textarea:focus-visible {
 /* Admin panel background + logo, swapped per theme via data-theme on <html>.
    The actual image URLs come from admin-uploaded settings (CSS custom
    properties set inline per-page) — this just decides which one shows. */
+/* Admin panel background — pure CSS (gradient + dot pattern), not an
+   uploaded photo. This guarantees it always fits the page perfectly on
+   any screen size, since there's no fixed-aspect-ratio image being
+   cropped or stretched — it's just drawn at whatever size is needed. */
 .admin-bg-layer {
-  background-image: var(--admin-bg-light);
-  background-size: cover;
-  background-position: bottom center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-image:
+    radial-gradient(rgb(var(--color-gold) / 0.18) 1.5px, transparent 1.5px),
+    linear-gradient(160deg, rgb(var(--color-ink-lighter)) 0%, rgb(var(--color-ink)) 55%, rgb(var(--color-ink-lighter)) 100%);
+  background-size: 18px 18px, 100% 100%;
+  background-position: top left, center;
+  background-repeat: repeat, no-repeat;
 }
 [data-theme="dark"] .admin-bg-layer {
-  background-image: var(--admin-bg-dark);
+  background-image:
+    radial-gradient(rgb(var(--color-gold) / 0.3) 1.5px, transparent 1.5px),
+    linear-gradient(160deg, rgb(20 17 12) 0%, rgb(10 9 7) 55%, rgb(20 17 12) 100%);
+  background-size: 18px 18px, 100% 100%;
 }
 
 /* Login-page-only override: targets the admin-bg-layer that contains the

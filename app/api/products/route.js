@@ -88,5 +88,6 @@ export async function POST(request) {
   notifyDealAlertSubscribers(data); // fire-and-forget, doesn't block the response
   autoPostNewProduct(data); // fire-and-forget, doesn't block the response
 
+
   return NextResponse.json({ product: data });
 }

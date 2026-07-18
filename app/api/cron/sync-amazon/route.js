@@ -4,8 +4,6 @@ import { isAdminLoggedIn } from "@/lib/auth";
 import { fetchProductsByAsins, searchProductsByKeyword, rankBestProducts, chunkArray } from "@/lib/amazon";
 import slugify from "slugify";
 
-// How many brand-new products to add per category, per run. Kept small and
-// conservative to stay well within Amazon's daily request allowance.
 const NEW_PRODUCTS_PER_CATEGORY = 2;
 
 async function uniqueSlug(title) {
@@ -69,35 +67,35 @@ async function discoverNewDeals() {
   let megaDealsToday = 0;
 
   for (const category of regularCategories) {
+    if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
+      try {
+        const dealResults = await searchProductsByKeyword(`${category.name} clearance deal sale`);
+        const freshDeals = dealResults.filter((p) => !existingAsins.has(p.asin));
+        const megaPicks = rankBestProducts(freshDeals, 1, 0.5);
+
+        for (const item of megaPicks) {
+          try {
+            const { error } = await insertDiscoveredProduct(item, megaDealsCategory.id);
+            if (error) throw error;
+            existingAsins.add(item.asin);
+            megaDealsToday += 1;
+            megaDealsFound += 1;
+            discovered += 1;
+          } catch (err) {
+            discoveryErrors += 1;
+            details.push(`Mega deal insert (${category.name}): ${err.message}`);
+          }
+        }
+      } catch (err) {
+        discoveryErrors += 1;
+        details.push(`Mega deal search (${category.name}): ${err.message}`);
+      }
+    }
+
     try {
       const results = await searchProductsByKeyword(category.name);
       const fresh = results.filter((p) => !existingAsins.has(p.asin));
-
-      // Pull out anything 50%+ off for the dedicated Mega Deals tab first,
-      // reusing this same search instead of making extra API calls.
-      let megaPicks = [];
-      if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
-        megaPicks = rankBestProducts(fresh, 1, 0.5);
-      }
-
-      for (const item of megaPicks) {
-        try {
-          const { error } = await insertDiscoveredProduct(item, megaDealsCategory.id);
-          if (error) throw error;
-          existingAsins.add(item.asin);
-          megaDealsToday += 1;
-          megaDealsFound += 1;
-          discovered += 1;
-        } catch (err) {
-          discoveryErrors += 1;
-          details.push(`Mega deal insert (${category.name}): ${err.message}`);
-        }
-      }
-
-      // Everything else goes through the normal per-category discovery,
-      // excluding whatever was just claimed by Mega Deals above.
-      const remaining = fresh.filter((p) => !megaPicks.some((m) => m.asin === p.asin));
-      const best = rankBestProducts(remaining, NEW_PRODUCTS_PER_CATEGORY, 0.25);
+      const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.25);
 
       for (const item of best) {
         try {
@@ -119,14 +117,37 @@ async function discoverNewDeals() {
   return { discovered, megaDealsFound, discoveryErrors, details };
 }
 
+async function demoteStaleMegaDeals() {
+  const { data: cats } = await supabaseAdmin.from("categories").select("id, slug");
+  const megaDeals = (cats || []).find((c) => c.slug === "mega-deals");
+  const fallback = (cats || []).find((c) => c.slug === "genies-choice");
+  if (!megaDeals || !fallback) return 0;
+
+  const { data: members } = await supabaseAdmin
+    .from("products")
+    .select("id, price, list_price")
+    .eq("category_id", megaDeals.id);
+
+  let demoted = 0;
+  for (const p of members || []) {
+    const discount =
+      p.list_price && p.price && p.list_price > p.price
+        ? (p.list_price - p.price) / p.list_price
+        : 0;
+    if (discount < 0.5) {
+      await supabaseAdmin.from("products").update({ category_id: fallback.id }).eq("id", p.id);
+      demoted += 1;
+    }
+  }
+  return demoted;
+}
+
 async function runSync() {
   let checked = 0;
   let updated = 0;
   let errors = 0;
   const errorMessages = [];
 
-  // 1) Refresh live data for every product that came from the Amazon API,
-  // batching up to 10 ASINs per request (Amazon's per-request limit).
   const { data: products } = await supabaseAdmin
     .from("products")
     .select("id, asin, price")
@@ -177,12 +198,11 @@ async function runSync() {
     }
   }
 
-  // 2) Discover brand-new products across your categories, so the site
-  // grows on its own without you having to paste in links.
+  const demoted = await demoteStaleMegaDeals();
+
   const { discovered, megaDealsFound, discoveryErrors, details: discoveryDetails } = await discoverNewDeals();
   errorMessages.push(...discoveryDetails);
 
-  // 3) Expired-deal detection: turn off lightning-deal status once the deadline passes
   const nowIso = new Date().toISOString();
   await supabaseAdmin
     .from("products")
@@ -202,7 +222,7 @@ async function runSync() {
     new_products_discovered: discovered,
     errors: errors + discoveryErrors,
     details:
-      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals).\n` +
+      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals). ${demoted} product(s) moved out of Mega Deals as they no longer qualify.\n` +
       errorMessages.join("\n") || null,
   };
 
@@ -210,8 +230,6 @@ async function runSync() {
   return summary;
 }
 
-// Called automatically by your scheduler (Vercel Cron and/or an external
-// service like cron-job.org), secured with CRON_SECRET
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -221,7 +239,6 @@ export async function GET(request) {
   return NextResponse.json(summary);
 }
 
-// Called from the admin panel's "Run Sync Now" button
 export async function POST() {
   if (!(await isAdminLoggedIn())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

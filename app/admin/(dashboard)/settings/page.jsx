@@ -11,6 +11,8 @@ export default function SiteSettingsPage() {
   const [adminBgDark, setAdminBgDark] = useState("");
   const [adminInnerBgLight, setAdminInnerBgLight] = useState("");
   const [adminInnerBgDark, setAdminInnerBgDark] = useState("");
+  const [footerBgLight, setFooterBgLight] = useState("");
+  const [footerBgDark, setFooterBgDark] = useState("");
   const [adminLogoLight, setAdminLogoLight] = useState("");
   const [adminLogoDark, setAdminLogoDark] = useState("");
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,8 @@ export default function SiteSettingsPage() {
         setAdminBgDark(s.admin_bg_dark || "");
         setAdminInnerBgLight(s.admin_inner_bg_light || "");
         setAdminInnerBgDark(s.admin_inner_bg_dark || "");
+        setFooterBgLight(s.footer_bg_light || "");
+        setFooterBgDark(s.footer_bg_dark || "");
         setAdminLogoLight(s.admin_logo_light || "");
         setAdminLogoDark(s.admin_logo_dark || "");
       })
@@ -56,6 +60,8 @@ export default function SiteSettingsPage() {
         saveSetting("admin_bg_dark", adminBgDark),
         saveSetting("admin_inner_bg_light", adminInnerBgLight),
         saveSetting("admin_inner_bg_dark", adminInnerBgDark),
+        saveSetting("footer_bg_light", footerBgLight),
+        saveSetting("footer_bg_dark", footerBgDark),
         saveSetting("admin_logo_light", adminLogoLight),
         saveSetting("admin_logo_dark", adminLogoDark),
       ]);
@@ -142,6 +148,26 @@ export default function SiteSettingsPage() {
                 label="Pages Background — Dark theme"
                 value={adminInnerBgDark}
                 onChange={setAdminInnerBgDark}
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-gold/15 pt-5">
+            <p className="text-sm text-cream font-semibold mb-3">Public Site Footer</p>
+            <p className="text-xs text-cream/40 mb-4">
+              Background for the footer at the bottom of every public page (not admin). Follows
+              the same light/dark toggle visitors use.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-5">
+              <ImageUploadField
+                label="Footer Background — Light theme"
+                value={footerBgLight}
+                onChange={setFooterBgLight}
+              />
+              <ImageUploadField
+                label="Footer Background — Dark theme"
+                value={footerBgDark}
+                onChange={setFooterBgDark}
               />
             </div>
           </div>

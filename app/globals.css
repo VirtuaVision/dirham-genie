@@ -103,3 +103,13 @@ textarea:focus-visible {
 .admin-logo-light { display: block; }
 [data-theme="dark"] .admin-logo-light { display: none; }
 [data-theme="dark"] .admin-logo-dark { display: block; }
+
+.footer-bg-layer {
+  background-image: var(--footer-bg-light);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+[data-theme="dark"] .footer-bg-layer {
+  background-image: var(--footer-bg-dark);
+}

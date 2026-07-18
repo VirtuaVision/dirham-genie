@@ -1,0 +1,1 @@
+app/api/admin/ai-image/generate/route.js

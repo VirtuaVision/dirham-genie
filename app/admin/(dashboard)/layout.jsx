@@ -1,6 +1,11 @@
 import AdminSidebar from "@/components/AdminSidebar";
 import { getSiteSetting } from "@/lib/siteSettings";
 
+// Admin pages are personalized/auth-gated and should never be served from
+// a stale cache — without this, a background image saved in Site Settings
+// could keep showing the old (or no) image for other visits/deployments.
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardLayout({ children }) {
   const [bgLight, bgDark] = await Promise.all([
     getSiteSetting("admin_inner_bg_light", ""),

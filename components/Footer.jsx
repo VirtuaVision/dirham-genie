@@ -1,5 +1,4 @@
 import Link from "next/link";
-import NewsletterForm from "@/components/NewsletterForm";
 import { getSiteSetting } from "@/lib/siteSettings";
 
 export default async function Footer() {
@@ -11,12 +10,6 @@ export default async function Footer() {
   return (
     <footer className="bg-ink border-t border-gold/20 mt-16 relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 py-10 relative z-10">
-        <div className="mb-10">
-          <NewsletterForm />
-        </div>
-
-        <div className="divider-gold mb-10" />
-
         <div className="grid gap-8 md:grid-cols-4 text-sm">
           <div>
             <div className="font-display text-lg gold-gradient-text mb-2">
@@ -82,13 +75,16 @@ export default async function Footer() {
       </div>
 
       {(bgLight || bgDark) && (
-        <div
-          className="footer-bg-layer w-full h-28 md:h-36"
-          style={{
-            "--footer-bg-light": bgLight ? `url(${bgLight})` : "none",
-            "--footer-bg-dark": bgDark ? `url(${bgDark})` : "none",
-          }}
-        />
+        <div className="relative w-full h-28 md:h-36">
+          <div
+            className="footer-bg-layer absolute inset-0 opacity-70"
+            style={{
+              "--footer-bg-light": bgLight ? `url(${bgLight})` : "none",
+              "--footer-bg-dark": bgDark ? `url(${bgDark})` : "none",
+            }}
+          />
+          <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-ink to-transparent" />
+        </div>
       )}
     </footer>
   );

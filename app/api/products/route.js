@@ -88,7 +88,7 @@ export async function POST(request) {
 
   notifyDealAlertSubscribers(data); // fire-and-forget, doesn't block the response
   autoPostNewProduct(data); // fire-and-forget, doesn't block the response
-
+  autoGenerateAIImageForNewProduct(data); // fire-and-forget, off by default — see AI_IMAGE_AUTO_GENERATE
 
   return NextResponse.json({ product: data });
 }

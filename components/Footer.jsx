@@ -1,10 +1,22 @@
 import Link from "next/link";
 import NewsletterForm from "@/components/NewsletterForm";
+import { getSiteSetting } from "@/lib/siteSettings";
 
-export default function Footer() {
+export default async function Footer() {
+  const [bgLight, bgDark] = await Promise.all([
+    getSiteSetting("footer_bg_light", ""),
+    getSiteSetting("footer_bg_dark", ""),
+  ]);
+
   return (
-    <footer data-theme="dark" className="bg-ink border-t border-gold/20 mt-16">
-      <div className="max-w-6xl mx-auto px-4 py-10">
+    <footer
+      className="footer-bg-layer bg-ink border-t border-gold/20 mt-16 relative"
+      style={{
+        "--footer-bg-light": bgLight ? `url(${bgLight})` : "none",
+        "--footer-bg-dark": bgDark ? `url(${bgDark})` : "none",
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-4 py-10 relative z-10">
         <div className="mb-10">
           <NewsletterForm />
         </div>

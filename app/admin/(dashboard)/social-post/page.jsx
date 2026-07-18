@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { formatAed, discountPercent } from "@/lib/formatCurrency";
+import { formatAed, discountPercent, truncateTitle } from "@/lib/formatCurrency";
 
 const SIZE = 1080;
 const MAX_SLOTS = 4;
@@ -246,14 +246,14 @@ function SocialPostPageInner() {
         const priceLine = discount
           ? `${price} (was ${formatAed(p.list_price)}) — ${discount}% OFF 🔥`
           : price;
-        return `✨ ${p.title}\n💰 ${priceLine}\n🔗 ${p.affiliate_url}`;
+        return `✨ ${truncateTitle(p.title)}\n💰 ${priceLine}\n🔗 ${p.affiliate_url}`;
       });
       const generatedCaption =
         `🧞‍♂️ Today's Best Deals from Dirham Genie! 🔥\n\n` +
         lines.join("\n\n") +
         `\n\n📍 Shop more: https://dirham-genie.vercel.app/\n` +
-        `📲 WhatsApp deals community: https://whatsapp.com/channel/0029VbDuCjs8F2pFx9WrrQ1b\n` +
-        `👍 Facebook: https://www.facebook.com/share/192L4NKNcz/\n` +
+        `📲 WhatsApp: https://whatsapp.com/channel/0029VbDuCjs8F2pFx9WrrQ1b\n` +
+        `👍 Facebook: https://www.facebook.com/share/1NpqYbsc6R/\n` +
         `📸 Instagram: https://www.instagram.com/dirham_genie\n\n` +
         `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay`;
       setCaption(generatedCaption);

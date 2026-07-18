@@ -13,6 +13,7 @@ export default function AdminLoginPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [forgotNote, setForgotNote] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [bg, setBg] = useState({ light: "", dark: "" });
   const [logo, setLogo] = useState({ light: "", dark: "" });
 
@@ -37,7 +38,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, remember }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -55,7 +56,7 @@ export default function AdminLoginPage() {
 
   return (
     <div
-      className="admin-bg-layer relative min-h-[90vh] overflow-hidden flex flex-col items-center justify-center px-4 py-12"
+      className="admin-bg-layer relative min-h-[70vh] overflow-hidden flex flex-col items-center justify-start px-4 pt-10 pb-6"
       style={{
         "--admin-bg-light": bg.light ? `url(${bg.light})` : "none",
         "--admin-bg-dark": bg.dark ? `url(${bg.dark})` : "none",
@@ -78,7 +79,7 @@ export default function AdminLoginPage() {
 
       {/* Logo badge */}
       <div className="relative z-10 mb-6">
-        <div className="w-40 h-40 rounded-full border-2 border-gold/40 bg-ink-light flex flex-col items-center justify-center shadow-sm overflow-hidden">
+        <div className="w-56 h-56 rounded-full border-2 border-gold/40 bg-ink-light flex flex-col items-center justify-center shadow-sm overflow-hidden">
           <img
             src={logo.light || "/logo-dirham-genie.png"}
             alt="Dirham Genie"
@@ -150,7 +151,15 @@ export default function AdminLoginPage() {
           </button>
         </div>
 
-        <div className="text-right mb-5">
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
+          <label className="flex items-center gap-2 text-xs text-cream/70">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            Keep me logged in
+          </label>
           <button
             type="button"
             onClick={() => setForgotNote((v) => !v)}
@@ -159,7 +168,7 @@ export default function AdminLoginPage() {
             Forgot Password?
           </button>
           {forgotNote && (
-            <p className="text-xs text-cream/50 mt-2 text-left">
+            <p className="text-xs text-cream/50 mt-2 text-left w-full">
               Ask another admin with Team Access to reset it for you, or contact whoever manages your Supabase project.
             </p>
           )}

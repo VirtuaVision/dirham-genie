@@ -91,7 +91,7 @@ textarea:focus-visible {
 .admin-bg-layer {
   background-image: var(--admin-bg-light);
   background-size: cover;
-  background-position: center;
+  background-position: bottom center;
   background-repeat: no-repeat;
   background-attachment: fixed;
 }
@@ -107,7 +107,7 @@ textarea:focus-visible {
 .footer-bg-layer {
   background-image: var(--footer-bg-light);
   background-size: cover;
-  background-position: center;
+  background-position: bottom center;
   background-repeat: no-repeat;
 }
 [data-theme="dark"] .footer-bg-layer {

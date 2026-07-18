@@ -26,7 +26,8 @@ export async function PUT(request, { params }) {
     "asin", "affiliate_url", "category_id", "is_featured", "is_active",
     "is_lightning_deal", "deal_expires_at", "coupon_code", "coupon_details",
     "rating", "review_count", "in_stock", "additional_images",
-    "amazon_category", "amazon_sales_rank",
+    "amazon_category", "amazon_sales_rank", "ai_image_url",
+  
   ];
   const updates = {};
   for (const key of updatable) {

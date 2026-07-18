@@ -9,13 +9,7 @@ export default async function Footer() {
   ]);
 
   return (
-    <footer
-      className="footer-bg-layer bg-ink border-t border-gold/20 mt-16 relative"
-      style={{
-        "--footer-bg-light": bgLight ? `url(${bgLight})` : "none",
-        "--footer-bg-dark": bgDark ? `url(${bgDark})` : "none",
-      }}
-    >
+    <footer className="bg-ink border-t border-gold/20 mt-16 relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 py-10 relative z-10">
         <div className="mb-10">
           <NewsletterForm />
@@ -86,6 +80,16 @@ export default async function Footer() {
           </span>
         </div>
       </div>
+
+      {(bgLight || bgDark) && (
+        <div
+          className="footer-bg-layer w-full h-28 md:h-36"
+          style={{
+            "--footer-bg-light": bgLight ? `url(${bgLight})` : "none",
+            "--footer-bg-dark": bgDark ? `url(${bgDark})` : "none",
+          }}
+        />
+      )}
     </footer>
   );
 }

@@ -4,6 +4,7 @@ import { isAdminLoggedIn } from "@/lib/auth";
 import slugify from "slugify";
 import { notifyDealAlertSubscribers } from "@/lib/notifyDealAlerts";
 import { autoPostNewProduct } from "@/lib/socialPost";
+import { autoGenerateAIImageForNewProduct } from "@/lib/aiImageGenerator";
 
 export async function GET() {
   if (!(await isAdminLoggedIn())) {

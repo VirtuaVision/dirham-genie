@@ -99,6 +99,17 @@ textarea:focus-visible {
   background-image: var(--admin-bg-dark);
 }
 
+/* Login-page-only override: targets the admin-bg-layer that contains the
+   email input (i.e. the login page, not the dashboard layout, which also
+   uses this class but has no email input). Pure CSS fix — doesn't require
+   editing/replacing the login page JSX file itself. */
+.admin-bg-layer:has(input[type="email"]) {
+  min-height: 70vh !important;
+  justify-content: flex-start !important;
+  padding-top: 2.5rem !important;
+  padding-bottom: 1.5rem !important;
+}
+
 .admin-logo-dark { display: none; }
 .admin-logo-light { display: block; }
 [data-theme="dark"] .admin-logo-light { display: none; }

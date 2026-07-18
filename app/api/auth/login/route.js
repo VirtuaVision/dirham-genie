@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { verifyPassword } from "@/lib/password";
 
 export async function POST(request) {
-  const { email, password } = await request.json();
+  const { email, password, remember } = await request.json();
 
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
@@ -15,7 +15,7 @@ export async function POST(request) {
 
   // 1) Check the permanent super-admin account (from environment variables)
   if (superEmail && superPassword && email === superEmail && password === superPassword) {
-    await createSession({ email, role: "admin" });
+    await createSession({ email, role: "admin", remember });
     return NextResponse.json({ ok: true });
   }
 
@@ -27,7 +27,7 @@ export async function POST(request) {
     .maybeSingle();
 
   if (user && verifyPassword(password, user.password_hash)) {
-    await createSession({ email: user.email, role: user.role });
+    await createSession({ email: user.email, role: user.role, remember });
     return NextResponse.json({ ok: true });
   }
 

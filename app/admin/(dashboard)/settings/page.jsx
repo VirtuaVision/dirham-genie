@@ -97,7 +97,7 @@ export default function SiteSettingsPage() {
         <div className="card-surface rounded-lg p-5 space-y-6">
           <div>
             <ImageUploadField
-              label="Site Logo (public website header)"
+              label="Site Logo (public website header) — 1200×1200px, square"
               value={logoUrl}
               onChange={setLogoUrl}
             />
@@ -110,22 +110,22 @@ export default function SiteSettingsPage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-5">
               <ImageUploadField
-                label="Login Background — Light theme"
+                label="Login Background — Light theme — 1024×1536px, portrait"
                 value={adminBgLight}
                 onChange={setAdminBgLight}
               />
               <ImageUploadField
-                label="Login Background — Dark theme"
+                label="Login Background — Dark theme — 1024×1536px, portrait"
                 value={adminBgDark}
                 onChange={setAdminBgDark}
               />
               <ImageUploadField
-                label="Login Logo — Light theme"
+                label="Login Logo — Light theme — 1200×1200px, square"
                 value={adminLogoLight}
                 onChange={setAdminLogoLight}
               />
               <ImageUploadField
-                label="Login Logo — Dark theme"
+                label="Login Logo — Dark theme — 1200×1200px, square"
                 value={adminLogoDark}
                 onChange={setAdminLogoDark}
               />
@@ -140,12 +140,12 @@ export default function SiteSettingsPage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-5">
               <ImageUploadField
-                label="Pages Background — Light theme"
+                label="Pages Background — Light theme — 1600×1200px, landscape"
                 value={adminInnerBgLight}
                 onChange={setAdminInnerBgLight}
               />
               <ImageUploadField
-                label="Pages Background — Dark theme"
+                label="Pages Background — Dark theme — 1600×1200px, landscape"
                 value={adminInnerBgDark}
                 onChange={setAdminInnerBgDark}
               />
@@ -160,12 +160,12 @@ export default function SiteSettingsPage() {
             </p>
             <div className="grid sm:grid-cols-2 gap-5">
               <ImageUploadField
-                label="Footer Background — Light theme"
+                label="Footer Background — Light theme — 1536×512px, wide banner (3:1)"
                 value={footerBgLight}
                 onChange={setFooterBgLight}
               />
               <ImageUploadField
-                label="Footer Background — Dark theme"
+                label="Footer Background — Dark theme — 1536×512px, wide banner (3:1)"
                 value={footerBgDark}
                 onChange={setFooterBgDark}
               />

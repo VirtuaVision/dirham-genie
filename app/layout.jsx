@@ -4,7 +4,6 @@ import "./globals.css";
 import Header from "@/components/Header";
 import SocialIconsBar from "@/components/SocialIconsBar";
 import Footer from "@/components/Footer";
-import NewsletterForm from "@/components/NewsletterForm";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import CookieConsent from "@/components/CookieConsent";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
@@ -98,13 +97,6 @@ export default function RootLayout({ children }) {
           <SocialIconsBar />
         </ConditionalChrome>
         <main className="flex-1">{children}</main>
-        <ConditionalChrome>
-          <section className="border-t border-gold/15 bg-ink-lighter">
-            <div className="max-w-6xl mx-auto px-4 py-10">
-              <NewsletterForm />
-            </div>
-          </section>
-        </ConditionalChrome>
         <ConditionalChrome>
           <Footer />
         </ConditionalChrome>

@@ -31,7 +31,7 @@ export default async function Header() {
               className="h-10 w-10 rounded-full object-cover lamp-glow"
             />
             <div className="leading-tight">
-              <span className="font-display text-xl tracking-wide gold-gradient-text block">
+              <span className="font-display text-xl font-bold tracking-wide text-gold-dim block">
                 Dirham Genie
               </span>
               <span className="hidden sm:block text-[11px] text-cream/40">
@@ -46,10 +46,16 @@ export default async function Header() {
                 type="text"
                 name="q"
                 placeholder={t(locale, "search")}
-                className="w-full rounded-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
+                className="w-full rounded-l-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/70 focus:border-gold outline-none"
               />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/40 text-sm">🔍</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/70 text-sm">🔍</span>
             </div>
+            <button
+              type="submit"
+              className="rounded-r-md bg-gold hover:bg-gold-bright px-4 py-2 text-sm font-semibold text-ink"
+            >
+              Search
+            </button>
           </form>
 
           <nav className="hidden lg:flex items-center gap-5 text-sm">
@@ -94,15 +100,15 @@ export default async function Header() {
               type="text"
               name="q"
               placeholder={t(locale, "search")}
-              className="w-full rounded-l-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/40 focus:border-gold outline-none"
+              className="w-full rounded-l-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/70 focus:border-gold outline-none"
             />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/40 text-sm">🔍</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/70 text-sm">🔍</span>
           </div>
           <button
             type="submit"
-            className="rounded-r-md bg-gold px-4 text-sm font-semibold text-ink"
+            className="rounded-r-md bg-gold hover:bg-gold-bright px-4 text-sm font-semibold text-ink"
           >
-            Go
+            Search
           </button>
         </form>
       </div>

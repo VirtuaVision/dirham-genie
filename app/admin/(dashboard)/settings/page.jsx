@@ -15,6 +15,12 @@ export default function SiteSettingsPage() {
   const [footerBgDark, setFooterBgDark] = useState("");
   const [adminLogoLight, setAdminLogoLight] = useState("");
   const [adminLogoDark, setAdminLogoDark] = useState("");
+  const [instagramLink, setInstagramLink] = useState("");
+  const [facebookLink, setFacebookLink] = useState("");
+  const [tiktokLink, setTiktokLink] = useState("");
+  const [whatsappLink, setWhatsappLink] = useState("");
+  const [youtubeLink, setYoutubeLink] = useState("");
+  const [twitterLink, setTwitterLink] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -34,6 +40,12 @@ export default function SiteSettingsPage() {
         setFooterBgDark(s.footer_bg_dark || "");
         setAdminLogoLight(s.admin_logo_light || "");
         setAdminLogoDark(s.admin_logo_dark || "");
+        setInstagramLink(s.social_instagram || "");
+        setFacebookLink(s.social_facebook || "");
+        setTiktokLink(s.social_tiktok || "");
+        setWhatsappLink(s.social_whatsapp || "");
+        setYoutubeLink(s.social_youtube || "");
+        setTwitterLink(s.social_twitter || "");
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -64,6 +76,12 @@ export default function SiteSettingsPage() {
         saveSetting("footer_bg_dark", footerBgDark),
         saveSetting("admin_logo_light", adminLogoLight),
         saveSetting("admin_logo_dark", adminLogoDark),
+        saveSetting("social_instagram", instagramLink),
+        saveSetting("social_facebook", facebookLink),
+        saveSetting("social_tiktok", tiktokLink),
+        saveSetting("social_whatsapp", whatsappLink),
+        saveSetting("social_youtube", youtubeLink),
+        saveSetting("social_twitter", twitterLink),
       ]);
       setSaved(true);
     } catch (err) {
@@ -169,6 +187,70 @@ export default function SiteSettingsPage() {
                 value={footerBgDark}
                 onChange={setFooterBgDark}
               />
+            </div>
+          </div>
+
+          <div className="border-t border-gold/15 pt-5">
+            <p className="text-sm text-cream font-semibold mb-3">Social Media Links</p>
+            <p className="text-xs text-cream/40 mb-4">
+              Paste your profile/channel links here — icons appear automatically in the site
+              footer, and only for platforms you fill in. Leave any blank to hide that icon.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">Instagram</label>
+                <input
+                  value={instagramLink}
+                  onChange={(e) => setInstagramLink(e.target.value)}
+                  placeholder="https://instagram.com/yourpage"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">Facebook</label>
+                <input
+                  value={facebookLink}
+                  onChange={(e) => setFacebookLink(e.target.value)}
+                  placeholder="https://facebook.com/yourpage"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">TikTok</label>
+                <input
+                  value={tiktokLink}
+                  onChange={(e) => setTiktokLink(e.target.value)}
+                  placeholder="https://tiktok.com/@yourpage"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">WhatsApp channel/group</label>
+                <input
+                  value={whatsappLink}
+                  onChange={(e) => setWhatsappLink(e.target.value)}
+                  placeholder="https://wa.me/... or channel link"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">YouTube</label>
+                <input
+                  value={youtubeLink}
+                  onChange={(e) => setYoutubeLink(e.target.value)}
+                  placeholder="https://youtube.com/@yourchannel"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">X / Twitter</label>
+                <input
+                  value={twitterLink}
+                  onChange={(e) => setTwitterLink(e.target.value)}
+                  placeholder="https://x.com/yourpage"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
             </div>
           </div>
 

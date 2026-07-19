@@ -13,6 +13,7 @@ import TrustBar from "@/components/TrustBar";
 import CategorySidebar from "@/components/CategorySidebar";
 import BannerStrip from "@/components/BannerStrip";
 import PrimePromoBanner from "@/components/PrimePromoBanner";
+import CategoryBanner from "@/components/CategoryBanner";
 import TrendingCarousel from "@/components/TrendingCarousel";
 import FeatureCards from "@/components/FeatureCards";
 import CategoryIconStrip from "@/components/CategoryIconStrip";
@@ -95,7 +96,50 @@ function BlockRenderer({ block, context }) {
   const config = block.config || {};
 
   switch (block.type) {
-    case "hero":
+    case "hero": {
+      const buttonText = config.buttonText || "Explore Today's Deals";
+      const buttonLink = config.buttonLink || "/deals/latest";
+
+      if (config.style === "sale") {
+        return (
+          <section className="relative overflow-hidden border-b border-gold/15">
+            {config.backgroundImage ? (
+              <>
+                <div
+                  className="absolute inset-0 bg-cover bg-center"
+                  style={{ backgroundImage: `url(${config.backgroundImage})` }}
+                />
+                <div className="absolute inset-0 bg-ink/60" />
+              </>
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-gold/20 via-ink-lighter to-transparent" />
+            )}
+
+            <div className="relative max-w-4xl mx-auto px-4 py-20 md:py-28 text-center">
+              {config.saleBadge && (
+                <span className="inline-block bg-red-600 text-white text-sm font-bold tracking-wide rounded-full px-5 py-2 mb-6">
+                  {config.saleBadge}
+                </span>
+              )}
+              <h1 className="font-display text-4xl md:text-6xl leading-tight gold-gradient-text">
+                {config.heading || "Unlocking the Best Deals, Every Day"}
+              </h1>
+              <p className="text-cream/80 mt-4 max-w-xl mx-auto text-lg">
+                {config.subheading || t(locale, "heroSubtitle")}
+              </p>
+              <div className="mt-8">
+                <Link
+                  href={buttonLink}
+                  className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-base px-8 py-3.5 rounded-md transition-colors"
+                >
+                  {buttonText} →
+                </Link>
+              </div>
+            </div>
+          </section>
+        );
+      }
+
       return (
         <section className="relative overflow-hidden border-b border-gold/15">
           {config.backgroundImage ? (
@@ -116,11 +160,17 @@ function BlockRenderer({ block, context }) {
                 UAE&apos;s deal-hunting genie
               </p>
               <h1 className="font-display text-4xl md:text-5xl leading-tight">
-                <span className="block">Unlocking the</span>
-                <span className="block gold-gradient-text">Best Deals,</span>
-                <span className="block">Every Day</span>
+                {config.heading ? (
+                  <span className="block gold-gradient-text">{config.heading}</span>
+                ) : (
+                  <>
+                    <span className="block">Unlocking the</span>
+                    <span className="block gold-gradient-text">Best Deals,</span>
+                    <span className="block">Every Day</span>
+                  </>
+                )}
               </h1>
-              <p className="text-cream/70 mt-4 max-w-md">{t(locale, "heroSubtitle")}</p>
+              <p className="text-cream/70 mt-4 max-w-md">{config.subheading || t(locale, "heroSubtitle")}</p>
 
               <div className="flex flex-wrap gap-2 mt-5">
                 {["Real Discounts", "Verified Prices", "Smart Shopping"].map((badge) => (
@@ -135,10 +185,10 @@ function BlockRenderer({ block, context }) {
 
               <div className="flex flex-wrap gap-3 mt-6">
                 <Link
-                  href="/deals/latest"
+                  href={buttonLink}
                   className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-sm px-5 py-2.5 rounded-md transition-colors"
                 >
-                  Explore Today&apos;s Deals →
+                  {buttonText} →
                 </Link>
                 <Link
                   href="/category"
@@ -153,6 +203,7 @@ function BlockRenderer({ block, context }) {
           </div>
         </section>
       );
+    }
 
     case "featured_products":
       if (featured.length === 0 || page !== 1) return null;
@@ -215,6 +266,9 @@ function BlockRenderer({ block, context }) {
 
     case "prime_banner":
       return <PrimePromoBanner config={config} />;
+
+    case "category_banner":
+      return <CategoryBanner config={config} />;
 
     case "trending_carousel":
       return <TrendingCarousel products={featured} />;

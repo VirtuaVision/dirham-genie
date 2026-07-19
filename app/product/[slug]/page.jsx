@@ -43,13 +43,16 @@ export async function generateMetadata({ params }) {
   if (!product) return { title: "Product not found | Dirham Genie" };
 
   const description = product.description?.slice(0, 150) || `${product.title} — see today's price on Dirham Genie.`;
+  const pageUrl = `https://dirhamgenie.com/product/${product.slug}`;
 
   return {
     title: `${product.title} | Dirham Genie`,
     description,
+    alternates: { canonical: pageUrl },
     openGraph: {
       title: product.title,
       description,
+      url: pageUrl,
       images: product.image_url ? [{ url: product.image_url, width: 800, height: 800 }] : undefined,
       type: "website",
       siteName: "Dirham Genie",
@@ -63,13 +66,23 @@ export async function generateMetadata({ params }) {
   };
 }
 
+async function getCategoryName(categoryId) {
+  if (!categoryId) return null;
+  const { data } = await supabase.from("categories").select("name, slug").eq("id", categoryId).single();
+  return data;
+}
+
 export default async function ProductPage({ params }) {
   const product = await getProduct(params.slug);
   if (!product) notFound();
 
   const related = await getRelated(product.category_id, product.id);
+  const category = await getCategoryName(product.category_id);
   const discount = discountPercent(product.price, product.list_price);
   const pageUrl = `https://dirhamgenie.com/product/${product.slug}`;
+
+  const priceValidUntil = new Date();
+  priceValidUntil.setDate(priceValidUntil.getDate() + 30);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -82,8 +95,10 @@ export default async function ProductPage({ params }) {
       "@type": "Offer",
       priceCurrency: product.currency || "AED",
       price: product.price || undefined,
+      priceValidUntil: priceValidUntil.toISOString().split("T")[0],
       url: pageUrl,
-      availability: "https://schema.org/InStock",
+      availability:
+        product.in_stock === false ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
     },
     aggregateRating: product.rating
       ? {
@@ -94,12 +109,49 @@ export default async function ProductPage({ params }) {
       : undefined,
   };
 
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://dirhamgenie.com" },
+      ...(category
+        ? [{
+            "@type": "ListItem",
+            position: 2,
+            name: category.name,
+            item: `https://dirhamgenie.com/category/${category.slug}`,
+          }]
+        : []),
+      {
+        "@type": "ListItem",
+        position: category ? 3 : 2,
+        name: product.title,
+        item: pageUrl,
+      },
+    ],
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
+      <nav className="text-xs text-cream/50 mb-4">
+        <a href="/" className="hover:text-gold">Home</a>
+        {category && (
+          <>
+            {" › "}
+            <a href={`/category/${category.slug}`} className="hover:text-gold">{category.name}</a>
+          </>
+        )}
+        {" › "}
+        <span className="text-cream/70">{product.title}</span>
+      </nav>
       <RecordView product={product} />
 
       <div className="grid md:grid-cols-2 gap-8">

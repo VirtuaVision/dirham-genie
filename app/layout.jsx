@@ -59,6 +59,31 @@ export default function RootLayout({ children }) {
       className={`${display.variable} ${body.variable} ${mono.variable}`}
     >
       <body className="font-body min-h-screen flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              {
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                name: "Dirham Genie",
+                url: "https://dirhamgenie.com",
+                logo: "https://dirhamgenie.com/logo-dirham-genie.png",
+              },
+              {
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                name: "Dirham Genie",
+                url: "https://dirhamgenie.com",
+                potentialAction: {
+                  "@type": "SearchAction",
+                  target: "https://dirhamgenie.com/search?q={search_term_string}",
+                  "query-input": "required name=search_term_string",
+                },
+              },
+            ]),
+          }}
+        />
         <Script id="theme-init" strategy="beforeInteractive">
           {`try {
             var t = localStorage.getItem('dg_theme');

@@ -1,0 +1,45 @@
+import Link from "next/link";
+
+export default function SplitFeatureBanner({ config = {} }) {
+  if (!config.heading && !config.image) return null;
+  const imageOnRight = config.imagePosition === "right";
+
+  const imageEl = config.image ? (
+    <div className="flex-1 min-w-0">
+      <img src={config.image} alt="" className="w-full h-56 md:h-full object-cover rounded-xl" />
+    </div>
+  ) : null;
+
+  const textEl = (
+    <div className="flex-1 min-w-0 flex flex-col justify-center">
+      {config.heading && <h3 className="font-display text-2xl md:text-3xl text-gold mb-2">{config.heading}</h3>}
+      {config.subheading && <p className="text-cream/70 text-sm mb-4 max-w-md">{config.subheading}</p>}
+      <div>
+        <Link
+          href={config.link || "/category"}
+          className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-sm px-5 py-2.5 rounded-md transition-colors"
+        >
+          {config.buttonText || "Learn More"} →
+        </Link>
+      </div>
+    </div>
+  );
+
+  return (
+    <section className="max-w-6xl mx-auto px-4 py-6">
+      <div className="rounded-xl border border-gold/20 p-5 md:p-8 flex flex-col md:flex-row gap-6 items-center">
+        {imageOnRight ? (
+          <>
+            {textEl}
+            {imageEl}
+          </>
+        ) : (
+          <>
+            {imageEl}
+            {textEl}
+          </>
+        )}
+      </div>
+    </section>
+  );
+}

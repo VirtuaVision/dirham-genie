@@ -1,31 +1,33 @@
 import Link from "next/link";
-import NewsletterForm from "@/components/NewsletterForm";
 import { getSiteSetting } from "@/lib/siteSettings";
 
 export default async function Footer() {
-  const [bgLight, bgDark] = await Promise.all([
+  const [bgLight, bgDark, instagram, facebook, tiktok, whatsapp, youtube, twitter] = await Promise.all([
     getSiteSetting("footer_bg_light", ""),
     getSiteSetting("footer_bg_dark", ""),
+    getSiteSetting("social_instagram", ""),
+    getSiteSetting("social_facebook", ""),
+    getSiteSetting("social_tiktok", ""),
+    getSiteSetting("social_whatsapp", ""),
+    getSiteSetting("social_youtube", ""),
+    getSiteSetting("social_twitter", ""),
   ]);
 
+  const socialLinks = [
+    { href: instagram, label: "Instagram", icon: "📸" },
+    { href: facebook, label: "Facebook", icon: "👍" },
+    { href: tiktok, label: "TikTok", icon: "🎵" },
+    { href: whatsapp, label: "WhatsApp", icon: "💬" },
+    { href: youtube, label: "YouTube", icon: "▶️" },
+    { href: twitter, label: "X / Twitter", icon: "𝕏" },
+  ].filter((s) => s.href);
+
   return (
-    <footer
-      className="footer-bg-layer bg-ink border-t border-gold/20 mt-16 relative"
-      style={{
-        "--footer-bg-light": bgLight ? `url(${bgLight})` : "none",
-        "--footer-bg-dark": bgDark ? `url(${bgDark})` : "none",
-      }}
-    >
+    <footer className="bg-ink border-t border-gold/20 mt-16 relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 py-10 relative z-10">
-        <div className="mb-10">
-          <NewsletterForm />
-        </div>
-
-        <div className="divider-gold mb-10" />
-
         <div className="grid gap-8 md:grid-cols-4 text-sm">
           <div>
-            <div className="font-display text-lg gold-gradient-text mb-2">
+            <div className="font-display text-lg font-bold text-gold-dim mb-2">
               Dirham Genie
             </div>
             <p className="text-cream/60 leading-relaxed">
@@ -34,6 +36,22 @@ export default async function Footer() {
               sponsored by Amazon beyond standard participation in its
               affiliate programme.
             </p>
+            {socialLinks.length > 0 && (
+              <div className="flex items-center gap-2 mt-4">
+                {socialLinks.map((s) => (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    className="w-9 h-9 flex items-center justify-center rounded-full border border-gold/25 text-base hover:border-gold hover:bg-white/5 transition-colors"
+                  >
+                    {s.icon}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
@@ -86,6 +104,19 @@ export default async function Footer() {
           </span>
         </div>
       </div>
+
+      {(bgLight || bgDark) && (
+        <div className="relative w-full h-28 md:h-36">
+          <div
+            className="footer-bg-layer absolute inset-0 opacity-70"
+            style={{
+              "--footer-bg-light": bgLight ? `url(${bgLight})` : "none",
+              "--footer-bg-dark": bgDark ? `url(${bgDark})` : "none",
+            }}
+          />
+          <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-ink to-transparent" />
+        </div>
+      )}
     </footer>
   );
 }

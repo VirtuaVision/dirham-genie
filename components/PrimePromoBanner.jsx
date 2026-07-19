@@ -12,7 +12,7 @@ export default function PrimePromoBanner({ config = {} }) {
     return (
       <section className="max-w-6xl mx-auto px-4 py-4">
         <Link
-          href="https://www.amazon.ae/amazonprime"
+          href="https://www.amazon.ae/prime?&linkCode=ll2&tag=dirham-genie-21&linkId=ab872be099f6946efde49aa8ec412a5d&ref_=as_li_ss_tl"
           target="_blank"
           rel="noopener noreferrer sponsored"
           className="block rounded-xl overflow-hidden border border-gold/20"

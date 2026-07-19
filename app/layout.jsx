@@ -2,6 +2,7 @@ import { Cinzel, Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/Header";
+import SocialIconsBar from "@/components/SocialIconsBar";
 import Footer from "@/components/Footer";
 import NewsletterForm from "@/components/NewsletterForm";
 import GoogleAnalytics from "@/components/GoogleAnalytics";

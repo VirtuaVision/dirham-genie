@@ -351,6 +351,7 @@ function BlockRenderer({ block, context }) {
         </section>
       );
 
+
     case "text_block":
       if (!config.heading && !config.body && !config.image) return null;
       return (

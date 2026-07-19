@@ -31,6 +31,7 @@ const CARDS = [
 
 export default function FeatureCards({ config = {} }) {
   const images = [config.card1_image, config.card2_image, config.card3_image];
+  const links = [config.card1_link, config.card2_link, config.card3_link];
 
   return (
     <section className="max-w-6xl mx-auto px-4 py-4">
@@ -38,7 +39,7 @@ export default function FeatureCards({ config = {} }) {
         {CARDS.map((card, i) => (
           <Link
             key={card.title}
-            href={card.href}
+            href={links[i] || card.href}
             className={`rounded-xl border p-5 ${card.accent} hover:brightness-105 transition-all`}
           >
             {images[i] ? (

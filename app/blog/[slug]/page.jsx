@@ -16,15 +16,35 @@ async function getPost(slug) {
 export async function generateMetadata({ params }) {
   const post = await getPost(params.slug);
   if (!post) return { title: "Post not found | Dirham Genie" };
-  return { title: `${post.title} | Dirham Genie`, description: post.excerpt };
+  return {
+    title: `${post.title} | Dirham Genie`,
+    description: post.excerpt,
+    alternates: { canonical: `https://dirhamgenie.com/blog/${post.slug}` },
+  };
 }
 
 export default async function BlogPostPage({ params }) {
   const post = await getPost(params.slug);
   if (!post) notFound();
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.excerpt || undefined,
+    image: post.cover_image_url ? [post.cover_image_url] : undefined,
+    datePublished: post.published_at,
+    author: { "@type": "Organization", name: "Dirham Genie" },
+    publisher: {
+      "@type": "Organization",
+      name: "Dirham Genie",
+      logo: { "@type": "ImageObject", url: "https://dirhamgenie.com/logo-dirham-genie.png" },
+    },
+  };
+
   return (
     <article className="max-w-2xl mx-auto px-4 py-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       {post.cover_image_url && (
         <img
           src={post.cover_image_url}

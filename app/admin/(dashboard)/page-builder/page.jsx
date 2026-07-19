@@ -237,6 +237,18 @@ function BlockConfigForm({ block, fields, onSave }) {
               />
               Enabled
             </label>
+          ) : field.type === "select" ? (
+            <select
+              value={values[field.key] ?? field.default}
+              onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
+              className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+            >
+              {field.options.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           ) : field.type === "image" ? (
             <ImageUploadField
               value={values[field.key] ?? field.default}
@@ -246,30 +258,4 @@ function BlockConfigForm({ block, fields, onSave }) {
             <textarea
               rows={3}
               value={values[field.key] ?? field.default}
-              onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
-              className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-            />
-          ) : (
-            <input
-              type={field.type === "number" ? "number" : "text"}
-              value={values[field.key] ?? field.default}
-              onChange={(e) =>
-                setValues((v) => ({
-                  ...v,
-                  [field.key]: field.type === "number" ? Number(e.target.value) : e.target.value,
-                }))
-              }
-              className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-            />
-          )}
-        </div>
-      ))}
-      <button
-        onClick={() => onSave(values)}
-        className="rounded-md bg-gold hover:bg-gold-bright text-ink text-xs font-semibold px-4 py-2"
-      >
-        Save Settings
-      </button>
-    </div>
-  );
-}
+              onChange={(e) => setValues((v) =>

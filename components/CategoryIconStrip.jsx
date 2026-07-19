@@ -38,14 +38,14 @@ export default function CategoryIconStrip({ categories }) {
 
   return (
     <section className="max-w-6xl mx-auto px-4 py-4">
-      <div className="flex items-center gap-6 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex items-center gap-7 overflow-x-auto pb-1 scrollbar-hide">
         {shown.map((c) => (
           <Link
             key={c.slug}
             href={`/category/${c.slug}`}
             className="flex flex-col items-center gap-2 shrink-0 group"
           >
-            <span className={`w-14 h-14 rounded-full border border-gold/20 flex items-center justify-center text-2xl group-hover:border-gold transition-colors ${COLOR_MAP[c.slug] || "bg-ink-lighter"}`}>
+            <span className={`w-20 h-20 rounded-full border border-gold/20 flex items-center justify-center text-4xl group-hover:border-gold transition-colors ${COLOR_MAP[c.slug] || "bg-ink-lighter"}`}>
               {ICON_MAP[c.slug] || "🏷️"}
             </span>
             <span className="text-xs text-cream/70 group-hover:text-gold transition-colors whitespace-nowrap">
@@ -54,7 +54,7 @@ export default function CategoryIconStrip({ categories }) {
           </Link>
         ))}
         <Link href="/category" className="flex flex-col items-center gap-2 shrink-0 group">
-          <span className="w-14 h-14 rounded-full bg-ink-lighter border border-gold/20 flex items-center justify-center text-xl group-hover:border-gold transition-colors">
+          <span className="w-20 h-20 rounded-full bg-ink-lighter border border-gold/20 flex items-center justify-center text-2xl group-hover:border-gold transition-colors">
             ⊞
           </span>
           <span className="text-xs text-cream/70 group-hover:text-gold transition-colors">More</span>

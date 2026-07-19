@@ -15,7 +15,7 @@ export default function CategoryBanner({ config = {} }) {
     config.subheading || "Big discounts on your favorite categories — while stocks last.";
   const buttonText = config.buttonText || "Shop the Sale";
 
-  const useImageStyle = config.style === "image" && config.image;
+  const useImageStyle = config.image && config.style !== "gradient";
 
   if (useImageStyle) {
     return (

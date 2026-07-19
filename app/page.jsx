@@ -14,6 +14,18 @@ import CategorySidebar from "@/components/CategorySidebar";
 import BannerStrip from "@/components/BannerStrip";
 import PrimePromoBanner from "@/components/PrimePromoBanner";
 import CategoryBanner from "@/components/CategoryBanner";
+import FlashSaleBanner from "@/components/FlashSaleBanner";
+import CouponBanner from "@/components/CouponBanner";
+import SplitBanner from "@/components/SplitBanner";
+import TripleImageBanner from "@/components/TripleImageBanner";
+import SimpleImageBanner from "@/components/SimpleImageBanner";
+import WhatsAppBanner from "@/components/WhatsAppBanner";
+import SocialFollowBanner from "@/components/SocialFollowBanner";
+import AnnouncementBar from "@/components/AnnouncementBar";
+import BrandSpotlightBanner from "@/components/BrandSpotlightBanner";
+import SeasonalSaleBanner from "@/components/SeasonalSaleBanner";
+import SplitFeatureBanner from "@/components/SplitFeatureBanner";
+import TestimonialBanner from "@/components/TestimonialBanner";
 import TrendingCarousel from "@/components/TrendingCarousel";
 import FeatureCards from "@/components/FeatureCards";
 import CategoryIconStrip from "@/components/CategoryIconStrip";
@@ -269,6 +281,42 @@ function BlockRenderer({ block, context }) {
 
     case "category_banner":
       return <CategoryBanner config={config} />;
+
+    case "flash_sale_banner":
+      return <FlashSaleBanner config={config} />;
+
+    case "coupon_banner":
+      return <CouponBanner config={config} />;
+
+    case "split_banner":
+      return <SplitBanner config={config} />;
+
+    case "triple_image_banner":
+      return <TripleImageBanner config={config} />;
+
+    case "simple_image_banner":
+      return <SimpleImageBanner config={config} />;
+
+    case "whatsapp_banner":
+      return <WhatsAppBanner config={config} />;
+
+    case "social_follow_banner":
+      return <SocialFollowBanner config={config} />;
+
+    case "announcement_bar":
+      return <AnnouncementBar config={config} />;
+
+    case "brand_spotlight_banner":
+      return <BrandSpotlightBanner config={config} />;
+
+    case "seasonal_sale_banner":
+      return <SeasonalSaleBanner config={config} />;
+
+    case "split_feature_banner":
+      return <SplitFeatureBanner config={config} />;
+
+    case "testimonial_banner":
+      return <TestimonialBanner config={config} />;
 
     case "trending_carousel":
       return <TrendingCarousel products={featured} />;

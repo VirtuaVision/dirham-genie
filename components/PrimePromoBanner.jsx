@@ -19,8 +19,8 @@ export default function PrimePromoBanner({ config = {} }) {
   const subheading =
     config.subheading || "Enjoy fast delivery, exclusive deals & much more with Amazon Prime.";
   const buttonText = config.buttonText || "Join Prime & Save";
-
-  const useImageStyle = config.style === "image" && config.image;
+const useImageStyle = config.image && config.style !== "gradient";
+  
 
   if (useImageStyle) {
     return (

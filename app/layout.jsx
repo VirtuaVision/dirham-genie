@@ -94,6 +94,7 @@ export default function RootLayout({ children }) {
         <ServiceWorkerRegister />
         <ConditionalChrome>
           <Header />
+          <SocialIconsBar />
         </ConditionalChrome>
         <main className="flex-1">{children}</main>
         <ConditionalChrome>

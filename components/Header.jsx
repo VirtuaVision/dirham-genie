@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getLocale, t } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
+import SearchBar from "@/components/SearchBar";
 import { getSiteSetting } from "@/lib/siteSettings";
 
 async function getCategories() {
@@ -40,23 +41,9 @@ export default async function Header() {
             </div>
           </Link>
 
-          <form action="/search" className="hidden md:flex flex-1 max-w-md items-center">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                name="q"
-                placeholder={t(locale, "search")}
-                className="w-full rounded-l-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/70 focus:border-gold outline-none"
-              />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/70 text-sm">🔍</span>
-            </div>
-            <button
-              type="submit"
-              className="rounded-r-md bg-gold hover:bg-gold-bright px-4 py-2 text-sm font-semibold text-ink"
-            >
-              Search
-            </button>
-          </form>
+          <div className="hidden md:flex flex-1 max-w-md">
+            <SearchBar placeholder={t(locale, "search")} />
+          </div>
 
           <nav className="hidden lg:flex items-center gap-5 text-sm">
             <Link href="/deals/latest" className="text-cream/80 hover:text-gold transition-colors">{t(locale, "latest")}</Link>
@@ -94,23 +81,9 @@ export default async function Header() {
           </div>
         </div>
 
-        <form action="/search" className="md:hidden pb-3 flex">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              name="q"
-              placeholder={t(locale, "search")}
-              className="w-full rounded-l-md bg-ink-lighter border border-gold/30 pl-9 pr-3 py-2 text-sm text-cream placeholder:text-cream/70 focus:border-gold outline-none"
-            />
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cream/70 text-sm">🔍</span>
-          </div>
-          <button
-            type="submit"
-            className="rounded-r-md bg-gold hover:bg-gold-bright px-4 text-sm font-semibold text-ink"
-          >
-            Search
-          </button>
-        </form>
+        <div className="md:hidden pb-3 flex">
+          <SearchBar placeholder={t(locale, "search")} />
+        </div>
       </div>
     </header>
   );

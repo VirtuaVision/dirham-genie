@@ -1,5 +1,6 @@
 // Save as: app/page.jsx (replaces the whole file)
 
+import { Suspense } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
@@ -285,7 +286,9 @@ function BlockRenderer({ block, context, priority = false }) {
             <h2 className="font-display text-2xl text-gold">{config.heading || "Freshly Unlocked"}</h2>
             <p className="text-xs text-cream/40">{totalRecent} deals total</p>
           </div>
-          <FilterBar />
+          <Suspense fallback={null}>
+            <FilterBar />
+          </Suspense>
           {recent.length === 0 ? (
             <EmptyState
               icon="🪔"
@@ -300,7 +303,9 @@ function BlockRenderer({ block, context, priority = false }) {
                 ))}
               </div>
               {config.paginated !== false && (
-                <Pagination currentPage={page} totalPages={totalPages} basePath="/" />
+                <Suspense fallback={null}>
+                  <Pagination currentPage={page} totalPages={totalPages} basePath="/" />
+                </Suspense>
               )}
             </>
           )}

@@ -5,7 +5,7 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function CouponBanner({ config = {} }) {
+export default function CouponBanner({ config = {}, priority = false }) {
   const [copied, setCopied] = useState(false);
   const useImageStyle = config.image && config.style !== "gradient";
 
@@ -20,7 +20,14 @@ export default function CouponBanner({ config = {} }) {
     return (
       <section className="max-w-6xl mx-auto px-4 py-4">
         <Link href={config.link || "/deals/latest"} className="block rounded-xl overflow-hidden border border-gold/20">
-          <img src={config.image} alt={config.heading || "Coupon"} className="w-full h-auto" />
+          <img
+            src={config.image}
+            alt={config.heading || "Coupon"}
+            className="w-full h-auto"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
+          />
         </Link>
       </section>
     );

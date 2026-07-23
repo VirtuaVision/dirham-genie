@@ -1,3 +1,4 @@
+
 // Save as: app/page.jsx (replaces the whole file)
 
 import { supabase } from "@/lib/supabaseClient";
@@ -209,9 +210,17 @@ function BlockRenderer({ block, context }) {
                   ⊞ Top Categories
                 </Link>
               </div>
+
+              {config.backgroundImage && (
+                <div className="mt-3">
+                  <RubTheLamp label={t(locale, "rubTheLamp")} hideLampImage align="start" />
+                </div>
+              )}
             </div>
 
-            <RubTheLamp label={t(locale, "rubTheLamp")} hideLampImage={!!config.backgroundImage} />
+            {!config.backgroundImage && (
+              <RubTheLamp label={t(locale, "rubTheLamp")} hideLampImage={false} />
+            )}
           </div>
         </section>
       );

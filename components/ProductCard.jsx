@@ -1,11 +1,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { formatAed, discountPercent } from "@/lib/formatCurrency";
+import { timeAgo } from "@/lib/timeAgo";
 import CountdownTimer from "@/components/CountdownTimer";
 import StarRating from "@/components/StarRating";
 
 export default function ProductCard({ product }) {
   const discount = discountPercent(product.price, product.list_price);
+  const checked = timeAgo(product.last_synced_at || product.updated_at);
 
   return (
     <Link
@@ -83,6 +85,9 @@ export default function ProductCard({ product }) {
         )}
         {product.rating && (
           <StarRating rating={product.rating} reviewCount={product.review_count} />
+        )}
+        {checked && (
+          <span className="text-[10px] text-cream/35">Price checked {checked}</span>
         )}
       </div>
     </Link>

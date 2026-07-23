@@ -11,7 +11,7 @@ const OCCASIONS = {
   new_year: { gradient: "from-amber-500 to-yellow-600", emoji: "🎉", heading: "New Year Sale", subheading: "Start the year with great deals." },
 };
 
-export default function SeasonalSaleBanner({ config = {} }) {
+export default function SeasonalSaleBanner({ config = {}, priority = false }) {
   const occasion = OCCASIONS[config.theme] || OCCASIONS.black_friday;
   const textColor = config.theme === "white_friday" ? "text-gray-900" : "text-white";
   const subColor = config.theme === "white_friday" ? "text-gray-700" : "text-white/80";
@@ -24,7 +24,14 @@ export default function SeasonalSaleBanner({ config = {} }) {
       >
         {config.image ? (
           <>
-            <img src={config.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img
+              src={config.image}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "auto"}
+              decoding="async"
+            />
             <div className="absolute inset-0 bg-black/50" />
           </>
         ) : (

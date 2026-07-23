@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { queryProducts } from "@/lib/queryProducts";
 import ProductCard from "@/components/ProductCard";
 import FilterBar from "@/components/FilterBar";
@@ -18,7 +19,9 @@ export default async function LatestDealsPage({ searchParams }) {
       <h1 className="font-display text-3xl text-gold mb-2">Latest Deals</h1>
       <p className="text-cream/60 text-sm mb-6">Freshly unlocked, newest first.</p>
 
-      <FilterBar />
+      <Suspense fallback={null}>
+        <FilterBar />
+      </Suspense>
 
       {products.length === 0 ? (
         <p className="text-cream/50 text-sm">No deals match these filters yet.</p>

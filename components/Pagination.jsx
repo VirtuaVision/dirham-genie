@@ -1,9 +1,20 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function Pagination({ currentPage, totalPages, basePath = "/" }) {
+  const searchParams = useSearchParams();
+
   if (totalPages <= 1) return null;
 
-  const pageHref = (p) => (p === 1 ? basePath : `${basePath}?page=${p}`);
+  const pageHref = (p) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (p === 1) params.delete("page");
+    else params.set("page", p);
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
+  };
 
   const pages = [];
   for (let p = 1; p <= totalPages; p++) {

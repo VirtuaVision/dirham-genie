@@ -26,7 +26,13 @@ export default function AmazonLiveResults({ products }) {
             >
               <div className="relative aspect-square bg-white/5 flex items-center justify-center">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.title} className="max-h-full max-w-full object-contain p-4" />
+                  <img
+                    src={p.image_url}
+                    alt={p.title}
+                    className="max-h-full max-w-full object-contain p-4"
+                    loading="lazy"
+                    decoding="async"
+                  />
                 ) : (
                   <span className="text-cream/30 text-sm">No image</span>
                 )}

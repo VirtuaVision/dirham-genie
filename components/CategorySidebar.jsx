@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const CATEGORY_ICONS = {
   "genies-choice": "🧞",
@@ -25,38 +28,50 @@ const CATEGORY_COLORS = {
 };
 
 export default function CategorySidebar({ categories }) {
+  const pathname = usePathname();
+
   return (
     <aside className="md:w-52 shrink-0">
       <h2 className="font-display text-lg text-gold mb-3">Shop by Category</h2>
 
       <div className="flex md:hidden gap-2 overflow-x-auto pb-2 mb-2">
-        {categories.map((c) => (
-          <Link
-            key={c.slug}
-            href={`/category/${c.slug}`}
-            className="shrink-0 card-surface rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-cream/80 hover:border-gold/50 transition-colors"
-          >
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${CATEGORY_COLORS[c.slug] || "bg-gold/15 text-gold"}`}>
-              {CATEGORY_ICONS[c.slug] || "🛍️"}
-            </span>
-            {c.name}
-          </Link>
-        ))}
+        {categories.map((c) => {
+          const active = pathname === `/category/${c.slug}`;
+          return (
+            <Link
+              key={c.slug}
+              href={`/category/${c.slug}`}
+              className={`shrink-0 card-surface rounded-lg px-4 py-2 flex items-center gap-2 text-sm transition-colors ${
+                active ? "border-gold text-gold" : "text-cream/80 hover:border-gold/50"
+              }`}
+            >
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${CATEGORY_COLORS[c.slug] || "bg-gold/15 text-gold"}`}>
+                {CATEGORY_ICONS[c.slug] || "🛍️"}
+              </span>
+              {c.name}
+            </Link>
+          );
+        })}
       </div>
 
       <nav className="hidden md:flex flex-col gap-1">
-        {categories.map((c) => (
-          <Link
-            key={c.slug}
-            href={`/category/${c.slug}`}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-cream/80 hover:bg-ink-lighter hover:text-gold transition-colors"
-          >
-            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${CATEGORY_COLORS[c.slug] || "bg-gold/15 text-gold"}`}>
-              {CATEGORY_ICONS[c.slug] || "🛍️"}
-            </span>
-            {c.name}
-          </Link>
-        ))}
+        {categories.map((c) => {
+          const active = pathname === `/category/${c.slug}`;
+          return (
+            <Link
+              key={c.slug}
+              href={`/category/${c.slug}`}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
+                active ? "bg-ink-lighter text-gold font-medium" : "text-cream/80 hover:bg-ink-lighter hover:text-gold"
+              }`}
+            >
+              <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 ${CATEGORY_COLORS[c.slug] || "bg-gold/15 text-gold"}`}>
+                {CATEGORY_ICONS[c.slug] || "🛍️"}
+              </span>
+              {c.name}
+            </Link>
+          );
+        })}
       </nav>
     </aside>
   );

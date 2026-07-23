@@ -11,6 +11,7 @@ import RecentlyViewed from "@/components/RecentlyViewed";
 import EmptyState from "@/components/EmptyState";
 import TrustBar from "@/components/TrustBar";
 import CategorySidebar from "@/components/CategorySidebar";
+import FilterBar from "@/components/FilterBar";
 import BannerStrip from "@/components/BannerStrip";
 import PrimePromoBanner from "@/components/PrimePromoBanner";
 import CategoryBanner from "@/components/CategoryBanner";
@@ -36,9 +37,31 @@ export const revalidate = 60;
 
 const PER_PAGE = 40;
 
-async function getData(page) {
+async function getData(page, filters = {}) {
   const from = (page - 1) * PER_PAGE;
   const to = from + PER_PAGE - 1;
+  const { sort, minPrice, maxPrice, minRating } = filters;
+
+  let recentQuery = supabase.from("products").select("*", { count: "exact" }).eq("is_active", true);
+  if (minPrice) recentQuery = recentQuery.gte("price", Number(minPrice));
+  if (maxPrice) recentQuery = recentQuery.lte("price", Number(maxPrice));
+  if (minRating) recentQuery = recentQuery.gte("rating", Number(minRating));
+
+  switch (sort) {
+    case "price_asc":
+      recentQuery = recentQuery.order("price", { ascending: true, nullsFirst: false });
+      break;
+    case "price_desc":
+      recentQuery = recentQuery.order("price", { ascending: false, nullsFirst: false });
+      break;
+    case "rating":
+      recentQuery = recentQuery.order("rating", { ascending: false, nullsFirst: false });
+      break;
+    default:
+      recentQuery = recentQuery.order("created_at", { ascending: false });
+      break;
+  }
+  recentQuery = recentQuery.range(from, to);
 
   const [{ data: featured }, { data: recent, count }, { data: categories }, { data: banners }, { data: blocks }] =
     await Promise.all([
@@ -49,20 +72,26 @@ async function getData(page) {
         .eq("is_featured", true)
         .order("created_at", { ascending: false })
         .limit(8),
-      supabase
-        .from("products")
-        .select("*", { count: "exact" })
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .range(from, to),
+      recentQuery,
       supabase.from("categories").select("name, slug").order("name"),
       supabase.from("banners").select("*").eq("is_active", true).order("sort_order"),
       supabase.from("homepage_blocks").select("*").eq("is_visible", true).order("sort_order"),
     ]);
 
+  // "discount" sort can't be done in SQL (it's a derived value), so it's
+  // applied in-memory on the page's worth of results we already fetched.
+  const sortedRecent =
+    sort === "discount"
+      ? [...(recent || [])].sort((a, b) => {
+          const da = a.price && a.list_price && a.list_price > a.price ? (a.list_price - a.price) / a.list_price : 0;
+          const db = b.price && b.list_price && b.list_price > b.price ? (b.list_price - b.price) / b.list_price : 0;
+          return db - da;
+        })
+      : recent || [];
+
   return {
     featured: featured || [],
-    recent: recent || [],
+    recent: sortedRecent,
     totalRecent: count || 0,
     categories: categories || [],
     banners: banners || [],
@@ -84,11 +113,18 @@ async function getData(page) {
 
 export default async function HomePage({ searchParams }) {
   const page = Math.max(1, parseInt(searchParams?.page) || 1);
-  const { featured, recent, totalRecent, categories, banners, blocks } = await getData(page);
+  const { sort, minPrice, maxPrice, minRating } = searchParams || {};
+  const { featured, recent, totalRecent, categories, banners, blocks } = await getData(page, {
+    sort,
+    minPrice,
+    maxPrice,
+    minRating,
+  });
   const locale = getLocale();
   const totalPages = Math.ceil(totalRecent / PER_PAGE);
 
   const context = { featured, recent, totalRecent, categories, banners, page, totalPages, locale };
+
 
   return (
     <div>
@@ -249,6 +285,7 @@ function BlockRenderer({ block, context, priority = false }) {
             <h2 className="font-display text-2xl text-gold">{config.heading || "Freshly Unlocked"}</h2>
             <p className="text-xs text-cream/40">{totalRecent} deals total</p>
           </div>
+          <FilterBar />
           {recent.length === 0 ? (
             <EmptyState
               icon="🪔"

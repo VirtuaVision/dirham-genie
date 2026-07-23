@@ -4,6 +4,7 @@ import { getLocale, t } from "@/lib/i18n";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ThemeToggle from "@/components/ThemeToggle";
 import SearchBar from "@/components/SearchBar";
+import WishlistCount from "@/components/WishlistCount";
 import { getSiteSetting } from "@/lib/siteSettings";
 
 async function getCategories() {
@@ -66,9 +67,10 @@ export default async function Header() {
             <Link
               href="/wishlist"
               aria-label="Wishlist"
-              className="w-9 h-9 flex items-center justify-center rounded-full text-cream/70 hover:text-gold hover:bg-white/5 transition-colors"
+              className="relative w-9 h-9 flex items-center justify-center rounded-full text-cream/70 hover:text-gold hover:bg-white/5 transition-colors"
             >
               ♡
+              <WishlistCount />
             </Link>
             <Link
               href="/admin/login"

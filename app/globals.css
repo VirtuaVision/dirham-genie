@@ -9,9 +9,9 @@
   --color-ink-light: 255 255 255;    /* white card surface (creates the two-tone contrast) */
   --color-ink-lighter: 235 221 206;  /* warm mocha — inputs, accents, alternating sections */
   --color-cream: 30 41 59;           /* dark slate-navy text */
-  --color-gold: 234 88 12;           /* vivid orange accent */
-  --color-gold-bright: 249 115 22;
-  --color-gold-dim: 194 65 12;
+  --color-gold: 194 65 12;           /* vivid orange accent (darkened) */
+  --color-gold-bright: 234 88 12;
+  --color-gold-dim: 154 52 10;
   --color-deal-green: 22 163 74;
 }
 
@@ -20,9 +20,9 @@
   --color-ink-light: 20 20 28;
   --color-ink-lighter: 29 29 40;
   --color-cream: 245 241 232;
-  --color-gold: 212 175 55;
-  --color-gold-bright: 244 196 48;
-  --color-gold-dim: 138 109 31;
+  --color-gold: 180 140 40;
+  --color-gold-bright: 212 175 55;
+  --color-gold-dim: 120 95 25;
   --color-deal-green: 46 158 91;
 }
 

@@ -43,7 +43,13 @@ export default function FeatureCards({ config = {} }) {
             className={`rounded-xl border p-5 ${card.accent} hover:brightness-105 transition-all`}
           >
             {images[i] ? (
-              <img src={images[i]} alt="" className="w-full h-28 object-cover rounded-lg mb-3" />
+              <img
+                src={images[i]}
+                alt=""
+                className="w-full h-28 object-cover rounded-lg mb-3"
+                loading="lazy"
+                decoding="async"
+              />
             ) : (
               <span className={`inline-flex w-9 h-9 rounded-full items-center justify-center text-base mb-3 ${card.iconBg}`}>
                 {card.icon}

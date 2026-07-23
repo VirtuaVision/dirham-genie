@@ -1,4 +1,3 @@
-
 // Save as: app/page.jsx (replaces the whole file)
 
 import { supabase } from "@/lib/supabaseClient";
@@ -167,8 +166,8 @@ function BlockRenderer({ block, context }) {
             <div className="absolute inset-0 bg-gradient-to-br from-gold/15 via-ink-lighter to-transparent" />
           )}
 
-          <div className="relative max-w-6xl mx-auto px-4 py-16 md:py-20">
-            <div className="max-w-2xl mb-10">
+          <div className="relative max-w-6xl mx-auto px-4 py-8 md:py-10">
+            <div className="max-w-2xl mb-4">
               <p className="uppercase tracking-[0.2em] text-xs text-gold/80 mb-3">
                 UAE&apos;s deal-hunting genie
               </p>
@@ -183,9 +182,9 @@ function BlockRenderer({ block, context }) {
                   </>
                 )}
               </h1>
-              <p className="text-cream/70 mt-4 max-w-md">{config.subheading || t(locale, "heroSubtitle")}</p>
+              <p className="text-cream/70 mt-3 max-w-md">{config.subheading || t(locale, "heroSubtitle")}</p>
 
-              <div className="flex flex-wrap gap-2 mt-5">
+              <div className="flex flex-wrap gap-2 mt-4">
                 {["Real Discounts", "Verified Prices", "Smart Shopping"].map((badge) => (
                   <span
                     key={badge}
@@ -196,7 +195,7 @@ function BlockRenderer({ block, context }) {
                 ))}
               </div>
 
-              <div className="flex flex-wrap gap-3 mt-6">
+              <div className="flex flex-wrap gap-3 mt-4">
                 <Link
                   href={buttonLink}
                   className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-sm px-5 py-2.5 rounded-md transition-colors"

@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatAed } from "@/lib/formatCurrency";
 
-export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish", hideLampImage = false }) {
+export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish", hideLampImage = false, align = "center" }) {
   const [loading, setLoading] = useState(false);
   const [product, setProduct] = useState(null);
   const [error, setError] = useState(null);
@@ -28,8 +28,11 @@ export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish", hi
     }
   }
 
+  const alignClasses =
+    align === "start" ? "items-start text-left" : "items-center text-center";
+
   return (
-    <div className="flex flex-col items-center text-center gap-6">
+    <div className={`flex flex-col ${alignClasses} gap-4`}>
       {!hideLampImage && (
         <div className="relative">
           <span className="absolute -top-2 -left-6 text-gold animate-sparkle text-xl">✦</span>
@@ -52,7 +55,7 @@ export default function RubTheLamp({ label = "Rub the Lamp for Today's Wish", hi
       <button
         onClick={rubTheLamp}
         disabled={loading}
-        className="rounded-full bg-gold hover:bg-gold-bright text-ink font-semibold px-6 py-2.5 text-sm transition-colors disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2.5 text-sm transition-colors disabled:opacity-60"
       >
         {loading ? "Summoning a deal..." : label}
       </button>

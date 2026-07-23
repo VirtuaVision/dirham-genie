@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Disclosure from "@/components/Disclosure";
 import { formatAed, discountPercent } from "@/lib/formatCurrency";
+import { timeAgo } from "@/lib/timeAgo";
 import ProductCard from "@/components/ProductCard";
 import BuyButton from "@/components/BuyButton";
 import WishlistButton from "@/components/WishlistButton";
@@ -79,6 +80,7 @@ export default async function ProductPage({ params }) {
   const related = await getRelated(product.category_id, product.id);
   const category = await getCategoryName(product.category_id);
   const discount = discountPercent(product.price, product.list_price);
+  const checked = timeAgo(product.last_synced_at || product.updated_at);
   const pageUrl = `https://dirhamgenie.com/product/${product.slug}`;
 
   const priceValidUntil = new Date();
@@ -222,7 +224,7 @@ export default async function ProductPage({ params }) {
           )}
 
           <p className="text-xs text-cream/40 mt-1">
-            Price last checked at time of listing. Actual price on Amazon.ae may vary.
+            {checked ? `Price checked ${checked}.` : "Price last checked at time of listing."} Actual price on Amazon.ae may vary.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">

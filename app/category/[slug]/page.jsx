@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { queryProducts } from "@/lib/queryProducts";
@@ -72,7 +73,9 @@ export default async function CategoryPage({ params, searchParams }) {
         {products.length} deal{products.length === 1 ? "" : "s"} unlocked in this category
       </p>
 
-      <FilterBar />
+      <Suspense fallback={null}>
+        <FilterBar />
+      </Suspense>
 
       <div className="mb-6 max-w-md">
         <DealAlertForm defaultCategoryId={category.id} />

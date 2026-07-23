@@ -12,7 +12,7 @@ import Link from "next/link";
 const DEFAULT_PRIME_LINK =
   "https://www.amazon.ae/prime?&linkCode=ll2&tag=dirham-genie-21&linkId=ab872be099f6946efde49aa8ec412a5d&ref_=as_li_ss_tl";
 
-export default function PrimePromoBanner({ config = {} }) {
+export default function PrimePromoBanner({ config = {}, priority = false }) {
   const link = config.link || DEFAULT_PRIME_LINK;
   const eyebrow = config.eyebrow || "Amazon Prime";
   const heading = config.heading || "Start your Prime journey";
@@ -31,7 +31,14 @@ export default function PrimePromoBanner({ config = {} }) {
           rel="noopener noreferrer sponsored"
           className="block rounded-xl overflow-hidden border border-gold/20"
         >
-          <img src={config.image} alt={heading} className="w-full h-auto" />
+          <img
+            src={config.image}
+            alt={heading}
+            className="w-full h-auto"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
+          />
         </Link>
       </section>
     );

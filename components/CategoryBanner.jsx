@@ -7,7 +7,7 @@
 
 import Link from "next/link";
 
-export default function CategoryBanner({ config = {} }) {
+export default function CategoryBanner({ config = {}, priority = false }) {
   const link = config.link || "/category";
   const eyebrow = config.eyebrow || "Limited Time";
   const heading = config.heading || "This Week's Category Sale";
@@ -24,7 +24,14 @@ export default function CategoryBanner({ config = {} }) {
           href={link}
           className="block rounded-xl overflow-hidden border border-gold/20"
         >
-          <img src={config.image} alt={heading} className="w-full h-auto" />
+          <img
+            src={config.image}
+            alt={heading}
+            className="w-full h-auto"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
+            decoding="async"
+          />
         </Link>
       </section>
     );

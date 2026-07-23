@@ -1,12 +1,19 @@
 import Link from "next/link";
 
-export default function SplitFeatureBanner({ config = {} }) {
+export default function SplitFeatureBanner({ config = {}, priority = false }) {
   if (!config.heading && !config.image) return null;
   const imageOnRight = config.imagePosition === "right";
 
   const imageEl = config.image ? (
     <div className="flex-1 min-w-0">
-      <img src={config.image} alt="" className="w-full h-56 md:h-full object-cover rounded-xl" />
+      <img
+        src={config.image}
+        alt=""
+        className="w-full h-56 md:h-full object-cover rounded-xl"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
+        decoding="async"
+      />
     </div>
   ) : null;
 

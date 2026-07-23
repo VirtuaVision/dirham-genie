@@ -41,6 +41,7 @@ export default function WishlistButton({ product }) {
         ];
     writeWishlist(next);
     setSaved(!exists);
+    window.dispatchEvent(new Event("wishlist-updated"));
   }
 
   return (

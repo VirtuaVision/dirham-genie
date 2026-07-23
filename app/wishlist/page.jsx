@@ -20,6 +20,7 @@ export default function WishlistPage() {
     const next = items.filter((p) => p.id !== id);
     setItems(next);
     localStorage.setItem("dg_wishlist", JSON.stringify(next));
+    window.dispatchEvent(new Event("wishlist-updated"));
   }
 
   return (

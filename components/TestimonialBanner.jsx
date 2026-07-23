@@ -8,7 +8,13 @@ export default function TestimonialBanner({ config = {} }) {
     <section className="max-w-6xl mx-auto px-4 py-6">
       <div className="rounded-xl border border-gold/20 bg-ink-lighter p-6 md:p-8 flex items-center gap-5">
         {config.avatar && (
-          <img src={config.avatar} alt="" className="w-14 h-14 rounded-full object-cover shrink-0" />
+          <img
+            src={config.avatar}
+            alt=""
+            className="w-14 h-14 rounded-full object-cover shrink-0"
+            loading="lazy"
+            decoding="async"
+          />
         )}
         <div>
           <p className="text-gold mb-1">{"★".repeat(rating)}{"☆".repeat(5 - rating)}</p>

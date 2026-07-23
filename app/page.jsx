@@ -92,8 +92,8 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <div>
-      {blocks.map((block) => (
-        <BlockRenderer key={block.id} block={block} context={context} />
+      {blocks.map((block, index) => (
+        <BlockRenderer key={block.id} block={block} context={context} priority={index === 0} />
       ))}
 
       <div className="max-w-6xl mx-auto px-4 py-4">
@@ -103,7 +103,7 @@ export default async function HomePage({ searchParams }) {
   );
 }
 
-function BlockRenderer({ block, context }) {
+function BlockRenderer({ block, context, priority = false }) {
   const { featured, recent, totalRecent, categories, banners, page, totalPages, locale } = context;
   const config = block.config || {};
 
@@ -285,25 +285,25 @@ function BlockRenderer({ block, context }) {
     }
 
     case "prime_banner":
-      return <PrimePromoBanner config={config} />;
+      return <PrimePromoBanner config={config} priority={priority} />;
 
     case "category_banner":
-      return <CategoryBanner config={config} />;
+      return <CategoryBanner config={config} priority={priority} />;
 
     case "flash_sale_banner":
       return <FlashSaleBanner config={config} />;
 
     case "coupon_banner":
-      return <CouponBanner config={config} />;
+      return <CouponBanner config={config} priority={priority} />;
 
     case "split_banner":
-      return <SplitBanner config={config} />;
+      return <SplitBanner config={config} priority={priority} />;
 
     case "triple_image_banner":
-      return <TripleImageBanner config={config} />;
+      return <TripleImageBanner config={config} priority={priority} />;
 
     case "simple_image_banner":
-      return <SimpleImageBanner config={config} />;
+      return <SimpleImageBanner config={config} priority={priority} />;
 
     case "whatsapp_banner":
       return <WhatsAppBanner config={config} />;
@@ -315,13 +315,13 @@ function BlockRenderer({ block, context }) {
       return <AnnouncementBar config={config} />;
 
     case "brand_spotlight_banner":
-      return <BrandSpotlightBanner config={config} />;
+      return <BrandSpotlightBanner config={config} priority={priority} />;
 
     case "seasonal_sale_banner":
-      return <SeasonalSaleBanner config={config} />;
+      return <SeasonalSaleBanner config={config} priority={priority} />;
 
     case "split_feature_banner":
-      return <SplitFeatureBanner config={config} />;
+      return <SplitFeatureBanner config={config} priority={priority} />;
 
     case "testimonial_banner":
       return <TestimonialBanner config={config} />;
@@ -365,7 +365,13 @@ function BlockRenderer({ block, context }) {
       return (
         <section className="max-w-6xl mx-auto px-4 py-6">
           {config.image && (
-            <img src={config.image} alt="" className="w-full max-h-64 object-cover rounded-lg mb-3" />
+            <img
+              src={config.image}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="w-full max-h-64 object-cover rounded-lg mb-3"
+            />
           )}
           {config.heading && (
             <h2 className="font-display text-xl text-gold mb-2">{config.heading}</h2>

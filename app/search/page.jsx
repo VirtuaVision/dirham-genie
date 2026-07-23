@@ -1,6 +1,6 @@
+import { Suspense } from "react";
 import { queryProducts } from "@/lib/queryProducts";
 import { searchProductsByKeyword, rankBestProducts } from "@/lib/amazon";
-import { supabase } from "@/lib/supabaseClient";
 import ProductCard from "@/components/ProductCard";
 import FilterBar from "@/components/FilterBar";
 import EmptyState from "@/components/EmptyState";
@@ -8,36 +8,35 @@ import AmazonLiveResults from "@/components/AmazonLiveResults";
 
 export const revalidate = 0;
 
-const CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+function countDiscounted(products) {
+  return products.filter((p) => p.list_price && p.list_price > p.price).length;
+}
 
 async function getLiveAmazonResults(query) {
-  const cacheKey = query.trim().toLowerCase();
-
   try {
-    // Check for a recent cached result first — saves an Amazon API call
-    // (and avoids the rate-limit errors we've hit) for repeat searches.
-    const { data: cached } = await supabase
-      .from("search_cache")
-      .select("results, cached_at")
-      .eq("query", cacheKey)
-      .maybeSingle();
+    let best = [];
+    let bestDiscountCount = -1;
 
-    if (cached && Date.now() - new Date(cached.cached_at).getTime() < CACHE_MAX_AGE_MS) {
-      return cached.results;
+    // Amazon's search endpoint doesn't reliably include savings/list-price
+    // data on every call for the same query — it can come back sparse (or
+    // completely without discounts) even a moment after a call that had
+    // plenty. Try a few times and keep whichever attempt actually returned
+    // the most discount data, instead of settling for the first response.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const results = await searchProductsByKeyword(query);
+      const ranked = rankBestProducts(results, 6);
+      const discountCount = countDiscounted(ranked);
+
+      if (discountCount > bestDiscountCount) {
+        best = ranked;
+        bestDiscountCount = discountCount;
+      }
+
+      // Good enough — most results have a discount, no need to keep trying.
+      if (discountCount >= Math.ceil(ranked.length / 2)) break;
     }
 
-    const results = await searchProductsByKeyword(query);
-    const ranked = rankBestProducts(results, 6);
-
-    // Fire-and-forget cache write — upsert so repeated searches refresh it
-    // instead of erroring on the primary key.
-    supabase
-      .from("search_cache")
-      .upsert({ query: cacheKey, results: ranked, cached_at: new Date().toISOString() })
-      .then(() => {})
-      .catch(() => {});
-
-    return ranked;
+    return best;
   } catch {
     // Amazon keys not configured yet, or the API call failed — fail quietly,
     // the page still works fine with just local results.
@@ -72,7 +71,11 @@ export default async function SearchPage({ searchParams }) {
           : "Type something in the search bar above to find a deal."}
       </p>
 
-      {query && <FilterBar />}
+      {query && (
+        <Suspense fallback={null}>
+          <FilterBar />
+        </Suspense>
+      )}
 
       {query && results.length === 0 && liveResults.length === 0 && (
         <EmptyState

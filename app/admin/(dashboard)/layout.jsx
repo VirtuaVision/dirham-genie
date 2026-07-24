@@ -14,7 +14,7 @@ export default async function AdminDashboardLayout({ children }) {
 
   return (
     <div
-      className="admin-bg-layer border-b border-gold/15 bg-ink"
+      className="admin-bg-layer border-b border-gold/15 bg-ink min-h-screen"
       style={{
         "--admin-bg-light": bgLight ? `url(${bgLight})` : "none",
         "--admin-bg-dark": bgDark ? `url(${bgDark})` : "none",

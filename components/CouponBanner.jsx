@@ -6,14 +6,18 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function CouponBanner({ config = {}, priority = false }) {
-  const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(null);
   const useImageStyle = config.image && config.style !== "gradient";
 
-  function copyCode() {
-    if (!config.couponCode) return;
-    navigator.clipboard?.writeText(config.couponCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const codes = (config.couponCode || "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  function copyCode(code) {
+    navigator.clipboard?.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode((current) => (current === code ? null : current)), 2000);
   }
 
   if (useImageStyle) {
@@ -42,14 +46,15 @@ export default function CouponBanner({ config = {}, priority = false }) {
             {config.subheading || "Use this code at checkout on Amazon.ae"}
           </p>
           <div className="flex items-center gap-3 flex-wrap">
-            {config.couponCode && (
+            {codes.map((code) => (
               <button
-                onClick={copyCode}
+                key={code}
+                onClick={() => copyCode(code)}
                 className="bg-white/15 border-2 border-dashed border-white/60 rounded-md px-4 py-2 font-mono font-bold tracking-widest text-lg hover:bg-white/25 transition-colors"
               >
-                {copied ? "Copied!" : config.couponCode}
+                {copiedCode === code ? "Copied!" : code}
               </button>
-            )}
+            ))}
             <Link
               href={config.link || "/deals/latest"}
               className="inline-flex items-center gap-2 bg-white text-teal-700 font-semibold text-sm px-4 py-2 rounded-md hover:bg-teal-50 transition-colors"

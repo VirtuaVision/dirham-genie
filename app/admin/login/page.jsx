@@ -56,7 +56,7 @@ export default function AdminLoginPage() {
 
   return (
     <div
-      className="admin-bg-layer relative min-h-[70vh] overflow-hidden flex flex-col items-center justify-start px-4 pt-10 pb-6"
+      className="admin-bg-layer relative min-h-screen overflow-hidden flex flex-col items-center justify-start px-4 pt-10 pb-6"
       style={{
         "--admin-bg-light": bg.light ? `url(${bg.light})` : "none",
         "--admin-bg-dark": bg.dark ? `url(${bg.dark})` : "none",

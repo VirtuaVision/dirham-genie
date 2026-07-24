@@ -18,7 +18,6 @@ const links = [
   { href: "/admin/posts", label: "Blog Posts" },
  { href: "/admin/social-post", label: "Social Post Generator" },
 { href: "/admin/ai-image-studio", label: "AI Image Studio" },
-{ href: "/admin/search-insights", label: "Search Insights" },
   { href: "/admin/sync-logs", label: "Sync Logs" },
   { href: "/admin/team", label: "Team Access" },
   { href: "/admin/settings", label: "Site Settings" },
@@ -58,22 +57,24 @@ export default function AdminSidebar() {
 
   return (
     <aside className="w-full md:w-56 shrink-0 md:border-r border-gold/15 md:pr-4 mb-6 md:mb-0">
-      <div className="flex items-center gap-3 mb-6">
-        <img
-          src={adminLogo.light || logoUrl}
-          alt="Dirham Genie"
-          className="admin-logo-light h-16 w-16 rounded-full object-cover border-2 border-gold/30 lamp-glow"
-        />
-        <img
-          src={adminLogo.dark || adminLogo.light || logoUrl}
-          alt="Dirham Genie"
-          className="admin-logo-dark h-16 w-16 rounded-full object-cover border-2 border-gold/30 lamp-glow"
-        />
-        <div className="hidden md:block flex-1">
-          <div className="font-display text-lg gold-gradient-text leading-tight">Dirham Genie</div>
-          <div className="text-xs text-cream/40 font-body">Admin Panel</div>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <img
+            src={adminLogo.light || logoUrl}
+            alt="Dirham Genie"
+            className="admin-logo-light h-14 w-14 rounded-full object-cover border-2 border-gold/30 lamp-glow shrink-0"
+          />
+          <img
+            src={adminLogo.dark || adminLogo.light || logoUrl}
+            alt="Dirham Genie"
+            className="admin-logo-dark h-14 w-14 rounded-full object-cover border-2 border-gold/30 lamp-glow shrink-0"
+          />
+          <ThemeToggle />
         </div>
-        <ThemeToggle />
+        <div className="hidden md:block">
+          <div className="font-display text-xl gold-gradient-text leading-tight">Dirham Genie</div>
+          <div className="text-xs text-cream/70 font-body mt-1">Admin Panel</div>
+        </div>
       </div>
       <nav className="flex md:flex-col gap-2 flex-wrap">
         {links.map((link) => {
@@ -82,10 +83,10 @@ export default function AdminSidebar() {
             <Link
               key={link.href}
               href={link.href}
-              className={`text-sm px-3 py-2 rounded-md transition-colors ${
+              className={`text-sm px-3 py-2 rounded-md transition-colors font-medium ${
                 active
                   ? "bg-gold/15 text-gold"
-                  : "text-cream/70 hover:bg-white/5 hover:text-gold"
+                  : "text-cream/90 hover:bg-white/5 hover:text-gold"
               }`}
             >
               {link.label}
@@ -94,13 +95,13 @@ export default function AdminSidebar() {
         })}
         <button
           onClick={handleLogout}
-          className="text-sm px-3 py-2 rounded-md text-cream/60 hover:text-red-300 hover:bg-red-500/10 text-left transition-colors"
+          className="text-sm px-3 py-2 rounded-md text-cream/80 hover:text-red-500 hover:bg-red-500/10 text-left transition-colors font-medium"
         >
           Log Out
         </button>
         <Link
           href="/"
-          className="text-sm px-3 py-2 rounded-md text-cream/40 hover:text-gold transition-colors"
+          className="text-sm px-3 py-2 rounded-md text-cream/70 hover:text-gold transition-colors font-medium"
         >
           &larr; View Site
         </Link>

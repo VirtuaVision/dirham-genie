@@ -9,6 +9,8 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
   async function load() {
     setLoading(true);
@@ -43,6 +45,14 @@ export default function AdminProductsPage() {
     load();
   }
 
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase());
+    const matchesSource =
+      sourceFilter === "all" ||
+      (sourceFilter === "amazon_api" ? p.source === "amazon_api" : p.source !== "amazon_api");
+    return matchesSearch && matchesSource;
+  });
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -72,8 +82,36 @@ export default function AdminProductsPage() {
         </p>
       )}
 
+      {!loading && products.length > 0 && (
+        <div className="flex flex-wrap gap-3 mb-4">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by title..."
+            className="flex-1 min-w-[180px] bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30"
+          />
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90"
+          >
+            <option value="all">All sources ({products.length})</option>
+            <option value="amazon_api">
+              Auto-fetched from Amazon ({products.filter((p) => p.source === "amazon_api").length})
+            </option>
+            <option value="manual">
+              Manual ({products.filter((p) => p.source !== "amazon_api").length})
+            </option>
+          </select>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {products.map((p) => (
+        {!loading && products.length > 0 && filteredProducts.length === 0 && (
+          <p className="text-cream/50 text-sm">No products match that search/filter.</p>
+        )}
+        {filteredProducts.map((p) => (
           <div
             key={p.id}
             className="card-surface rounded-lg p-3 flex flex-col sm:flex-row sm:items-center gap-3"

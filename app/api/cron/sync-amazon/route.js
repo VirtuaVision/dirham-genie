@@ -5,10 +5,11 @@ import { fetchProductsByAsins, searchProductsByKeyword, rankBestProducts, chunkA
 import slugify from "slugify";
 
 // The pacing added below (to avoid Amazon's Creators API rate limit) adds
-// real wall-clock time to this run, so give it more headroom than the
-// default serverless timeout. 60s is the max allowed on Vercel's Hobby
-// plan; raise it further if you're on Pro and still seeing timeouts.
-export const maxDuration = 60;
+// real wall-clock time to this run, so give it plenty of headroom — this
+// endpoint checks and discovers products, which is slow. 300s is the max
+// on Vercel's Pro plan; on Hobby it'll be clamped to Hobby's own cap (60s)
+// automatically, so this is safe to set high regardless of plan.
+export const maxDuration = 300;
 
 const NEW_PRODUCTS_PER_CATEGORY = 2;
 
@@ -33,7 +34,7 @@ async function searchWithPacing(keyword) {
     return await searchProductsByKeyword(keyword);
   } catch (err) {
     if (!looksLikeRateLimit(err)) throw err;
-    await sleep(4000);
+    await sleep(3000);
     return await searchProductsByKeyword(keyword);
   }
 }

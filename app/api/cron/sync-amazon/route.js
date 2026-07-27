@@ -4,7 +4,39 @@ import { isAdminLoggedIn } from "@/lib/auth";
 import { fetchProductsByAsins, searchProductsByKeyword, rankBestProducts, chunkArray } from "@/lib/amazon";
 import slugify from "slugify";
 
+// The pacing added below (to avoid Amazon's Creators API rate limit) adds
+// real wall-clock time to this run, so give it more headroom than the
+// default serverless timeout. 60s is the max allowed on Vercel's Hobby
+// plan; raise it further if you're on Pro and still seeing timeouts.
+export const maxDuration = 60;
+
 const NEW_PRODUCTS_PER_CATEGORY = 2;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function looksLikeRateLimit(err) {
+  const msg = (err?.message || "").toLowerCase();
+  return msg.includes("rate limit") || msg.includes("429") || msg.includes("too many requests");
+}
+
+/**
+ * Amazon's Creators API throttles requests per second. Firing a search per
+ * category back-to-back (as this discovery loop does) reliably trips that
+ * limit after the first few categories, silently killing discovery for the
+ * rest of the run. This wraps a search call with pacing + one retry after a
+ * longer backoff if it does get rate-limited.
+ */
+async function searchWithPacing(keyword) {
+  try {
+    return await searchProductsByKeyword(keyword);
+  } catch (err) {
+    if (!looksLikeRateLimit(err)) throw err;
+    await sleep(4000);
+    return await searchProductsByKeyword(keyword);
+  }
+}
 
 async function uniqueSlug(title) {
   const base = slugify(title, { lower: true, strict: true }) || "product";
@@ -69,7 +101,8 @@ async function discoverNewDeals() {
   for (const category of regularCategories) {
     if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
       try {
-        const dealResults = await searchProductsByKeyword(`${category.name} clearance deal sale`);
+        await sleep(1000);
+        const dealResults = await searchWithPacing(`${category.name} clearance deal sale`);
         const freshDeals = dealResults.filter((p) => !existingAsins.has(p.asin));
         const megaPicks = rankBestProducts(freshDeals, 1, 0.5);
 
@@ -93,7 +126,8 @@ async function discoverNewDeals() {
     }
 
     try {
-      const results = await searchProductsByKeyword(category.name);
+      await sleep(1000);
+      const results = await searchWithPacing(category.name);
       const fresh = results.filter((p) => !existingAsins.has(p.asin));
       const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.25);
 

@@ -25,8 +25,18 @@ export default function SyncLogsPage() {
     setMessage(null);
     try {
       const res = await fetch("/api/cron/sync-amazon", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      const raw = await res.text();
+      let json;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        throw new Error(
+          res.status === 504 || !res.ok
+            ? "The sync took too long and the server timed out before it finished. It may have partially run — check the logs below in a minute, or try again."
+            : "Unexpected response from the server."
+        );
+      }
+      if (!res.ok) throw new Error(json.error || "Sync failed.");
       setMessage(
         `Sync complete: checked ${json.products_checked}, updated ${json.products_updated}, discovered ${json.new_products_discovered || 0} new product(s), errors ${json.errors}.`
       );

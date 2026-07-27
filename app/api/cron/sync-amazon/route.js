@@ -22,6 +22,19 @@ function looksLikeRateLimit(err) {
   return msg.includes("rate limit") || msg.includes("429") || msg.includes("too many requests");
 }
 
+// Amazon's searchItems always returns the same top-10 for an identical
+// keyword+page. Without rotating something, discovery finds everything it's
+// ever going to find within the first ~week and then permanently returns 0
+// new products, which is what was happening. Rotating the page (1-5) and a
+// keyword modifier by day of year means each day's run looks at a
+// different slice of results instead of re-asking the same question.
+const DAY_OF_YEAR = Math.floor(
+  (Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000
+);
+const SEARCH_PAGE = (DAY_OF_YEAR % 5) + 1; // pages 1-5
+const KEYWORD_VARIANTS = ["", " deals", " bestsellers", " new arrivals", " top rated"];
+const KEYWORD_SUFFIX = KEYWORD_VARIANTS[DAY_OF_YEAR % KEYWORD_VARIANTS.length];
+
 /**
  * Amazon's Creators API throttles requests per second. Firing a search per
  * category back-to-back (as this discovery loop does) reliably trips that
@@ -29,13 +42,13 @@ function looksLikeRateLimit(err) {
  * rest of the run. This wraps a search call with pacing + one retry after a
  * longer backoff if it does get rate-limited.
  */
-async function searchWithPacing(keyword) {
+async function searchWithPacing(keyword, page = 1) {
   try {
-    return await searchProductsByKeyword(keyword);
+    return await searchProductsByKeyword(keyword, page);
   } catch (err) {
     if (!looksLikeRateLimit(err)) throw err;
     await sleep(3000);
-    return await searchProductsByKeyword(keyword);
+    return await searchProductsByKeyword(keyword, page);
   }
 }
 
@@ -103,7 +116,7 @@ async function discoverNewDeals() {
     if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
       try {
         await sleep(1000);
-        const dealResults = await searchWithPacing(`${category.name} clearance deal sale`);
+        const dealResults = await searchWithPacing(`${category.name} clearance deal sale`, SEARCH_PAGE);
         const freshDeals = dealResults.filter((p) => !existingAsins.has(p.asin));
         const megaPicks = rankBestProducts(freshDeals, 1, 0.5);
 
@@ -128,7 +141,7 @@ async function discoverNewDeals() {
 
     try {
       await sleep(1000);
-      const results = await searchWithPacing(category.name);
+      const results = await searchWithPacing(`${category.name}${KEYWORD_SUFFIX}`, SEARCH_PAGE);
       const fresh = results.filter((p) => !existingAsins.has(p.asin));
       const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.25);
 

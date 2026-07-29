@@ -20,7 +20,6 @@ export default function SearchInsightsPage() {
         What people search for on your site that finds nothing — a ready-made
         list of products worth adding next.
       </p>
-
       {loading ? (
         <p className="text-cream/50 text-sm">Loading...</p>
       ) : searches.length === 0 ? (

@@ -8,14 +8,11 @@ import AmazonLiveResults from "@/components/AmazonLiveResults";
 
 export const revalidate = 0;
 
-const CACHE_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_MAX_AGE_MS = 60 * 60 * 1000;
 
 async function getLiveAmazonResults(query) {
   const cacheKey = query.trim().toLowerCase();
-
   try {
-    // Check for a recent cached result first — saves an Amazon API call
-    // (and avoids rate-limit errors) for repeat searches.
     const { data: cached } = await supabase
       .from("search_cache")
       .select("results, cached_at")
@@ -29,8 +26,6 @@ async function getLiveAmazonResults(query) {
     const results = await searchProductsByKeyword(query);
     const ranked = rankBestProducts(results, 6);
 
-    // Fire-and-forget cache write — upsert so repeated searches refresh it
-    // instead of erroring on the primary key.
     supabase
       .from("search_cache")
       .upsert({ query: cacheKey, results: ranked, cached_at: new Date().toISOString() })
@@ -39,8 +34,6 @@ async function getLiveAmazonResults(query) {
 
     return ranked;
   } catch {
-    // Amazon keys not configured yet, or the API call failed — fail quietly,
-    // the page still works fine with just local results.
     return [];
   }
 }
@@ -57,13 +50,8 @@ export default async function SearchPage({ searchParams }) {
       })
     : [];
 
-  // Only bother calling Amazon's live API if our own site came up short —
-  // saves your daily API quota for when it's actually useful.
   const liveResults = query && results.length < 6 ? await getLiveAmazonResults(query) : [];
 
-  // Log this search (fire-and-forget) so Admin → Search Insights can show
-  // what people are looking for that finds nothing — useful for deciding
-  // what to add next.
   if (query) {
     const totalFound = results.length + liveResults.length;
     supabase

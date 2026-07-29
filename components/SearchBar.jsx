@@ -25,13 +25,11 @@ export default function SearchBar({ placeholder = "Search for a deal..." }) {
     const value = e.target.value;
     setQuery(value);
     clearTimeout(debounceRef.current);
-
     if (value.trim().length < 2) {
       setSuggestions([]);
       setOpen(false);
       return;
     }
-
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
@@ -44,7 +42,7 @@ export default function SearchBar({ placeholder = "Search for a deal..." }) {
       } finally {
         setLoading(false);
       }
-    }, 300); // debounce — waits for a pause in typing before calling the API
+    }, 300);
   }
 
   function goToSearch(e) {
@@ -72,7 +70,6 @@ export default function SearchBar({ placeholder = "Search for a deal..." }) {
           Search
         </button>
       </form>
-
       {open && (
         <div className="absolute top-full left-0 right-0 mt-1 card-surface rounded-lg overflow-hidden z-50 max-h-80 overflow-y-auto">
           {loading && <p className="text-xs text-cream/50 p-3">Searching...</p>}
@@ -95,10 +92,7 @@ export default function SearchBar({ placeholder = "Search for a deal..." }) {
             </a>
           ))}
           {suggestions.length > 0 && (
-            <button
-              onClick={goToSearch}
-              className="w-full text-center text-xs text-gold py-2 hover:bg-white/5"
-            >
+            <button onClick={goToSearch} className="w-full text-center text-xs text-gold py-2 hover:bg-white/5">
               See all results for &quot;{query}&quot; →
             </button>
           )}

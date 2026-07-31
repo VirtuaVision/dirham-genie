@@ -103,10 +103,38 @@ const CATEGORY_KEYWORD_POOL = {
   ],
 };
 
-function keywordForCategory(category) {
+// Amazon pays wildly different commission rates by category (Fashion/
+// Apparel/Shoes/Watches ~50%, Beauty ~19%, Home/Kitchen/Sports ~12%,
+// Toys ~10%, Electronics ~4% — the lowest tier). Searching every category
+// with equal effort ignores that. This weights discovery toward the
+// categories that actually pay: high-commission categories get searched
+// with more keyword picks per day; low-commission ones get skipped on
+// some days entirely to make room, rather than blowing up total run time.
+const CATEGORY_WEIGHT = {
+  fashion: { picks: 3, everyNDays: 1 }, // Apparel/Shoes/Watches — 50%
+  "beauty-personal-care": { picks: 2, everyNDays: 1 }, // Beauty — 19%
+  "home-kitchen": { picks: 1, everyNDays: 1 }, // Home/Kitchen — 12%
+  "sports-outdoors": { picks: 1, everyNDays: 1 }, // Sporting Goods — 12%
+  "toys-games": { picks: 1, everyNDays: 2 }, // Toys — 10%
+  electronics: { picks: 1, everyNDays: 3 }, // Electronics/Wireless — ~4%, lowest
+};
+const DEFAULT_WEIGHT = { picks: 1, everyNDays: 1 };
+
+/** Returns the list of keywords to search for this category today (can be
+ *  more than one for high-commission categories, or empty if today is a
+ *  skip day for a low-commission one). */
+function keywordsForCategoryToday(category) {
+  const weight = CATEGORY_WEIGHT[category.slug] || DEFAULT_WEIGHT;
+  if (DAY_OF_YEAR % weight.everyNDays !== 0) return [];
+
   const pool = CATEGORY_KEYWORD_POOL[category.slug];
-  if (!pool || pool.length === 0) return `${category.name}${KEYWORD_SUFFIX}`;
-  return pool[DAY_OF_YEAR % pool.length];
+  if (!pool || pool.length === 0) return [`${category.name}${KEYWORD_SUFFIX}`];
+
+  const picks = [];
+  for (let i = 0; i < weight.picks; i++) {
+    picks.push(pool[(DAY_OF_YEAR + i) % pool.length]);
+  }
+  return picks;
 }
 
 /**
@@ -211,10 +239,16 @@ async function discoverNewDeals() {
   let megaDealsToday = 0;
 
   for (const category of regularCategories) {
+    const todaysKeywords = keywordsForCategoryToday(category);
+    if (todaysKeywords.length === 0) {
+      details.push(`${category.name}: skipped today (lower-commission category, runs less often).`);
+      continue;
+    }
+
     if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
       try {
         await sleep(1000);
-        const dealResults = await searchWithPacing(`${keywordForCategory(category)} clearance deal sale`, SEARCH_PAGE);
+        const dealResults = await searchWithPacing(`${todaysKeywords[0]} clearance deal sale`, SEARCH_PAGE);
         const freshDeals = dealResults.filter((p) => !existingAsins.has(p.asin));
         const megaPicks = rankBestProducts(freshDeals, 1, 0.5);
 
@@ -237,26 +271,30 @@ async function discoverNewDeals() {
       }
     }
 
-    try {
-      await sleep(1000);
-      const results = await searchWithPacing(keywordForCategory(category), SEARCH_PAGE);
-      const fresh = results.filter((p) => !existingAsins.has(p.asin));
-      const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
+    // Higher-commission categories (Fashion, Beauty) search multiple
+    // keywords per day here; lower-commission ones search just one.
+    for (const keyword of todaysKeywords) {
+      try {
+        await sleep(1000);
+        const results = await searchWithPacing(keyword, SEARCH_PAGE);
+        const fresh = results.filter((p) => !existingAsins.has(p.asin));
+        const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
 
-      for (const item of best) {
-        try {
-          const { error } = await insertDiscoveredProduct(item, category.id);
-          if (error) throw error;
-          existingAsins.add(item.asin);
-          discovered += 1;
-        } catch (err) {
-          discoveryErrors += 1;
-          details.push(`Discovery insert (${category.name}): ${err.message}`);
+        for (const item of best) {
+          try {
+            const { error } = await insertDiscoveredProduct(item, category.id);
+            if (error) throw error;
+            existingAsins.add(item.asin);
+            discovered += 1;
+          } catch (err) {
+            discoveryErrors += 1;
+            details.push(`Discovery insert (${category.name}): ${err.message}`);
+          }
         }
+      } catch (err) {
+        discoveryErrors += 1;
+        details.push(`Discovery search (${category.name}, "${keyword}"): ${err.message}`);
       }
-    } catch (err) {
-      discoveryErrors += 1;
-      details.push(`Discovery search (${category.name}): ${err.message}`);
     }
   }
 

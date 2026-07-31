@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
 import { fetchProductsByAsins, searchProductsByKeyword, rankBestProducts, chunkArray } from "@/lib/amazon";
+import { sendEmail } from "@/lib/email";
+import { notifyDealAlertSubscribers } from "@/lib/notifyDealAlerts";
 import slugify from "slugify";
 
 // The pacing added below (to avoid Amazon's Creators API rate limit) adds
@@ -154,6 +156,42 @@ async function searchWithPacing(keyword, page = 1) {
   }
 }
 
+const FILLER_WORDS = new Set([
+  "the", "a", "an", "with", "for", "and", "of", "to", "in", "on",
+  "pack", "set", "pcs", "piece", "pieces", "new", "premium",
+]);
+
+/** Reduces a title to a comparable set of meaningful words — strips
+ *  punctuation, casing, and common filler/marketing words so that near-
+ *  identical listings ("Wireless Earbuds Bluetooth 5.3" vs "Bluetooth
+ *  Wireless Earbuds V5.3, New") are recognized as duplicates. */
+function titleTokens(title) {
+  return new Set(
+    (title || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !FILLER_WORDS.has(w))
+  );
+}
+
+function tokenOverlap(setA, setB) {
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let shared = 0;
+  for (const w of setA) if (setB.has(w)) shared += 1;
+  return shared / Math.min(setA.size, setB.size);
+}
+
+/** True if this item is a near-duplicate of something already in the same
+ *  category (same product, slightly different listing/title) — catches
+ *  cases the ASIN-based dedupe misses because it's a different ASIN
+ *  entirely (different seller/variant of the same item). */
+function isNearDuplicate(item, existingTitlesByCategory, categoryId) {
+  const candidates = existingTitlesByCategory.get(categoryId) || [];
+  const itemTokens = titleTokens(item.title);
+  return candidates.some((tokens) => tokenOverlap(itemTokens, tokens) >= 0.75);
+}
+
 async function uniqueSlug(title) {
   const base = slugify(title, { lower: true, strict: true }) || "product";
   let slug = base;
@@ -172,28 +210,32 @@ async function uniqueSlug(title) {
 
 async function insertDiscoveredProduct(item, categoryId) {
   const slug = await uniqueSlug(item.title);
-  return supabaseAdmin.from("products").insert({
-    title: item.title,
-    slug,
-    brand: item.brand,
-    description: item.description || null,
-    image_url: item.image_url,
-    additional_images: item.additional_images || null,
-    price: item.price,
-    list_price: item.list_price,
-    currency: item.currency,
-    asin: item.asin,
-    affiliate_url: item.affiliate_url,
-    category_id: categoryId,
-    source: "amazon_api",
-    is_active: true,
-    in_stock: item.in_stock !== false,
-    amazon_category: item.amazon_category || null,
-    amazon_sales_rank: item.amazon_sales_rank || null,
-    rating: item.rating,
-    review_count: item.review_count,
-    last_synced_at: new Date().toISOString(),
-  });
+  return supabaseAdmin
+    .from("products")
+    .insert({
+      title: item.title,
+      slug,
+      brand: item.brand,
+      description: item.description || null,
+      image_url: item.image_url,
+      additional_images: item.additional_images || null,
+      price: item.price,
+      list_price: item.list_price,
+      currency: item.currency,
+      asin: item.asin,
+      affiliate_url: item.affiliate_url,
+      category_id: categoryId,
+      source: "amazon_api",
+      is_active: true,
+      in_stock: item.in_stock !== false,
+      amazon_category: item.amazon_category || null,
+      amazon_sales_rank: item.amazon_sales_rank || null,
+      rating: item.rating,
+      review_count: item.review_count,
+      last_synced_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
 }
 
 const MAX_MEGA_DEALS_PER_DAY = 6;
@@ -236,10 +278,67 @@ async function discoverNewDeals() {
 
   const { data: existingProducts } = await supabaseAdmin.from("products").select("asin").not("asin", "is", null);
   const existingAsins = new Set((existingProducts || []).map((p) => p.asin));
+
+  // For near-duplicate detection: existing product titles, tokenized and
+  // grouped by category, so a listing that slipped past the ASIN check
+  // (different seller/variant of the same item) still gets caught.
+  const { data: titleRows } = await supabaseAdmin
+    .from("products")
+    .select("title, category_id")
+    .eq("is_active", true);
+  const existingTitlesByCategory = new Map();
+  (titleRows || []).forEach((row) => {
+    if (!row.category_id) return;
+    const list = existingTitlesByCategory.get(row.category_id) || [];
+    list.push(titleTokens(row.title));
+    existingTitlesByCategory.set(row.category_id, list);
+  });
+
+  // Smarter discovery: give one bonus keyword pick today to whichever
+  // category has driven the most affiliate clicks in the last 30 days —
+  // actual visitor interest, not just Amazon's commission table, gets a
+  // say in where discovery effort goes.
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentClicks } = await supabaseAdmin
+    .from("clicks")
+    .select("product_id")
+    .gte("created_at", thirtyDaysAgo);
+  let topPerformingCategoryId = null;
+  if (recentClicks && recentClicks.length > 0) {
+    const clickedProductIds = [...new Set(recentClicks.map((c) => c.product_id).filter(Boolean))];
+    if (clickedProductIds.length > 0) {
+      const { data: clickedProducts } = await supabaseAdmin
+        .from("products")
+        .select("id, category_id")
+        .in("id", clickedProductIds);
+      const categoryClickCounts = {};
+      const productCategory = new Map((clickedProducts || []).map((p) => [p.id, p.category_id]));
+      recentClicks.forEach((c) => {
+        const catId = productCategory.get(c.product_id);
+        if (!catId) return;
+        categoryClickCounts[catId] = (categoryClickCounts[catId] || 0) + 1;
+      });
+      const ranked = Object.entries(categoryClickCounts).sort((a, b) => b[1] - a[1]);
+      if (ranked.length > 0) topPerformingCategoryId = ranked[0][0];
+    }
+  }
+
   let megaDealsToday = 0;
 
   for (const category of regularCategories) {
-    const todaysKeywords = keywordsForCategoryToday(category);
+    let todaysKeywords = keywordsForCategoryToday(category);
+
+    // Click-performance bonus: today's top-clicked category gets one extra
+    // keyword pick, even on an otherwise skipped/low-frequency day.
+    if (category.id === topPerformingCategoryId) {
+      const pool = CATEGORY_KEYWORD_POOL[category.slug];
+      const bonusKeyword = pool ? pool[(DAY_OF_YEAR + 7) % pool.length] : `${category.name} popular`;
+      if (todaysKeywords.length === 0) {
+        details.push(`${category.name}: normally skipped today, but ran anyway — it's your top-clicked category this month.`);
+      }
+      todaysKeywords = [...todaysKeywords, bonusKeyword];
+    }
+
     if (todaysKeywords.length === 0) {
       details.push(`${category.name}: skipped today (lower-commission category, runs less often).`);
       continue;
@@ -249,17 +348,22 @@ async function discoverNewDeals() {
       try {
         await sleep(1000);
         const dealResults = await searchWithPacing(`${todaysKeywords[0]} clearance deal sale`, SEARCH_PAGE);
-        const freshDeals = dealResults.filter((p) => !existingAsins.has(p.asin));
+        const freshDeals = dealResults
+          .filter((p) => !existingAsins.has(p.asin))
+          .filter((p) => !isNearDuplicate(p, existingTitlesByCategory, megaDealsCategory.id));
         const megaPicks = rankBestProducts(freshDeals, 1, 0.5);
 
         for (const item of megaPicks) {
           try {
-            const { error } = await insertDiscoveredProduct(item, megaDealsCategory.id);
+            const { data: inserted, error } = await insertDiscoveredProduct(item, megaDealsCategory.id);
             if (error) throw error;
             existingAsins.add(item.asin);
             megaDealsToday += 1;
             megaDealsFound += 1;
             discovered += 1;
+            // A mega deal (50%+ off) is exciting enough to tell subscribers
+            // about right away, rather than waiting for them to browse in.
+            if (inserted) notifyDealAlertSubscribers(inserted).catch(() => {});
           } catch (err) {
             discoveryErrors += 1;
             details.push(`Mega deal insert (${category.name}): ${err.message}`);
@@ -277,7 +381,9 @@ async function discoverNewDeals() {
       try {
         await sleep(1000);
         const results = await searchWithPacing(keyword, SEARCH_PAGE);
-        const fresh = results.filter((p) => !existingAsins.has(p.asin));
+        const fresh = results
+          .filter((p) => !existingAsins.has(p.asin))
+          .filter((p) => !isNearDuplicate(p, existingTitlesByCategory, category.id));
         const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
 
         for (const item of best) {
@@ -305,7 +411,9 @@ async function discoverNewDeals() {
     try {
       await sleep(1000);
       const results = await searchWithPacing(keyword, SEARCH_PAGE);
-      const fresh = results.filter((p) => !existingAsins.has(p.asin));
+      const fresh = results
+        .filter((p) => !existingAsins.has(p.asin))
+        .filter((p) => !isNearDuplicate(p, existingTitlesByCategory, genieChoiceCategory?.id));
       const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
 
       for (const item of best) {
@@ -357,11 +465,12 @@ async function runSync() {
   let checked = 0;
   let updated = 0;
   let errors = 0;
+  let deactivated = 0;
   const errorMessages = [];
 
   const { data: products } = await supabaseAdmin
     .from("products")
-    .select("id, asin, price")
+    .select("id, asin, price, title, sync_miss_count")
     .eq("source", "amazon_api")
     .eq("is_active", true)
     .not("asin", "is", null);
@@ -373,6 +482,7 @@ async function runSync() {
     checked += batch.length;
     try {
       const freshItems = await fetchProductsByAsins(batch);
+      const foundAsins = new Set(freshItems.map((f) => f.asin));
 
       for (const fresh of freshItems) {
         const product = byAsin.get(fresh.asin);
@@ -393,6 +503,7 @@ async function runSync() {
             amazon_category: fresh.amazon_category || null,
             amazon_sales_rank: fresh.amazon_sales_rank || null,
             last_synced_at: new Date().toISOString(),
+            sync_miss_count: 0,
           })
           .eq("id", product.id);
 
@@ -401,6 +512,30 @@ async function runSync() {
             .from("price_history")
             .insert({ product_id: product.id, price: fresh.price });
           updated += 1;
+        }
+      }
+
+      // Anything requested but not returned this run is either delisted or
+      // had a transient hiccup. Track consecutive misses per product and
+      // only deactivate after 3 in a row, so one flaky API response
+      // doesn't take a live product off the site.
+      for (const asin of batch) {
+        if (foundAsins.has(asin)) continue;
+        const product = byAsin.get(asin);
+        if (!product) continue;
+
+        const missCount = (product.sync_miss_count || 0) + 1;
+        if (missCount >= 3) {
+          await supabaseAdmin
+            .from("products")
+            .update({ is_active: false, sync_miss_count: missCount, last_synced_at: new Date().toISOString() })
+            .eq("id", product.id);
+          deactivated += 1;
+          errorMessages.push(
+            `Deactivated "${product.title}" (${asin}) — not found on Amazon 3 syncs in a row, likely delisted.`
+          );
+        } else {
+          await supabaseAdmin.from("products").update({ sync_miss_count: missCount }).eq("id", product.id);
         }
       }
     } catch (err) {
@@ -433,11 +568,35 @@ async function runSync() {
     new_products_discovered: discovered,
     errors: errors + discoveryErrors,
     details:
-      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals). ${demoted} product(s) moved out of Mega Deals as they no longer qualify.\n` +
+      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals). ${demoted} product(s) moved out of Mega Deals as they no longer qualify. ${deactivated} product(s) auto-deactivated as delisted.\n` +
       errorMessages.join("\n") || null,
   };
 
   await supabaseAdmin.from("sync_logs").insert(summary);
+
+  // Fire-and-forget: sendEmail() itself no-ops quietly if RESEND_API_KEY or
+  // ADMIN_NOTIFICATION_EMAIL aren't set, so this is safe either way.
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (adminEmail) {
+    sendEmail({
+      to: adminEmail,
+      subject: `Dirham Genie sync: ${discovered} new, ${updated} updated, ${summary.errors} errors`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
+          <h2 style="color:#8A6D1F;">🪔 Daily Sync Summary</h2>
+          <ul style="line-height:1.8;">
+            <li>Checked: ${checked}</li>
+            <li>Prices updated: ${updated}</li>
+            <li>New products discovered: ${discovered} (${megaDealsFound} mega deals)</li>
+            <li>Deactivated (delisted): ${deactivated}</li>
+            <li>Errors: ${summary.errors}</li>
+          </ul>
+          <p style="font-size:12px;color:#888;">See full details in Sync Logs.</p>
+        </div>
+      `,
+    }).catch(() => {});
+  }
+
   return summary;
 }
 

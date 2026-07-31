@@ -35,6 +35,80 @@ const SEARCH_PAGE = (DAY_OF_YEAR % 5) + 1; // pages 1-5
 const KEYWORD_VARIANTS = ["", " deals", " bestsellers", " new arrivals", " top rated"];
 const KEYWORD_SUFFIX = KEYWORD_VARIANTS[DAY_OF_YEAR % KEYWORD_VARIANTS.length];
 
+// A bare category name ("Electronics") is broad and tends to return the
+// same generic, repetitive results. Specific product terms turn up far
+// more varied, relevant items. One gets picked per category per day
+// (rotating, so different terms get their turn across the week) instead
+// of always searching the raw category name.
+const CATEGORY_KEYWORD_POOL = {
+  electronics: [
+    "wireless earbuds",
+    "bluetooth speaker",
+    "power bank",
+    "smart watch",
+    "phone charger",
+    "laptop bag",
+    "gaming headset",
+    "webcam",
+  ],
+  "home-kitchen": [
+    "air fryer",
+    "coffee maker",
+    "kitchen knife set",
+    "storage organizer",
+    "bedding set",
+    "vacuum cleaner",
+    "blender",
+    "cookware set",
+  ],
+  "beauty-personal-care": [
+    "skincare set",
+    "hair dryer",
+    "electric shaver",
+    "makeup brush set",
+    "perfume",
+    "hair straightener",
+    "face serum",
+    "electric toothbrush",
+  ],
+  fashion: [
+    "running shoes",
+    "backpack",
+    "sunglasses",
+    "wallet",
+    "watch",
+    "handbag",
+    "sneakers",
+    "jacket",
+  ],
+  "toys-games": [
+    "building blocks",
+    "board game",
+    "remote control car",
+    "puzzle",
+    "action figure",
+    "kids bicycle",
+    "outdoor play set",
+    "educational toy",
+  ],
+  "sports-outdoors": [
+    "yoga mat",
+    "camping tent",
+    "resistance bands",
+    "water bottle",
+    "cycling helmet",
+    "dumbbell set",
+    "hiking backpack",
+    "fitness tracker",
+  ],
+};
+
+function keywordForCategory(category) {
+  const pool = CATEGORY_KEYWORD_POOL[category.slug];
+  if (!pool || pool.length === 0) return `${category.name}${KEYWORD_SUFFIX}`;
+  return pool[DAY_OF_YEAR % pool.length];
+}
+
 /**
  * Amazon's Creators API throttles requests per second. Firing a search per
  * category back-to-back (as this discovery loop does) reliably trips that
@@ -140,7 +214,7 @@ async function discoverNewDeals() {
     if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
       try {
         await sleep(1000);
-        const dealResults = await searchWithPacing(`${category.name} clearance deal sale`, SEARCH_PAGE);
+        const dealResults = await searchWithPacing(`${keywordForCategory(category)} clearance deal sale`, SEARCH_PAGE);
         const freshDeals = dealResults.filter((p) => !existingAsins.has(p.asin));
         const megaPicks = rankBestProducts(freshDeals, 1, 0.5);
 
@@ -165,7 +239,7 @@ async function discoverNewDeals() {
 
     try {
       await sleep(1000);
-      const results = await searchWithPacing(`${category.name}${KEYWORD_SUFFIX}`, SEARCH_PAGE);
+      const results = await searchWithPacing(keywordForCategory(category), SEARCH_PAGE);
       const fresh = results.filter((p) => !existingAsins.has(p.asin));
       const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
 

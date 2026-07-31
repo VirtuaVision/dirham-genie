@@ -29,6 +29,7 @@ async function getStats() {
     { data: recentClicks },
     { data: recentProducts },
     { data: lastSync },
+    { data: syncHistory },
   ] = await Promise.all([
     supabaseAdmin.from("products").select("*", { count: "exact", head: true }),
     supabaseAdmin.from("products").select("*", { count: "exact", head: true }).eq("is_active", true),
@@ -56,6 +57,11 @@ async function getStats() {
       .order("created_at", { ascending: false })
       .limit(5),
     supabaseAdmin.from("sync_logs").select("*").order("run_at", { ascending: false }).limit(1).maybeSingle(),
+    supabaseAdmin
+      .from("sync_logs")
+      .select("run_at, products_checked, products_updated, errors, details")
+      .order("run_at", { ascending: false })
+      .limit(30),
   ]);
 
   const clickCounts = {};
@@ -94,7 +100,82 @@ async function getStats() {
     topProducts,
     recentProducts: recentProducts || [],
     lastSync: lastSync || null,
+    syncHistory: (syncHistory || []).slice().reverse(),
   };
+}
+
+function discoveredFromDetails(details) {
+  const match = (details || "").match(/Discovered (\d+) new/);
+  return match ? Number(match[1]) : 0;
+}
+
+/** Pure-SVG line chart — no charting library needed. Plots products
+ *  checked (gold line) and discovered (green line) per sync run over the
+ *  last 30 days, with a red dot marking any run that had errors. */
+function SyncHealthChart({ history }) {
+  if (!history || history.length < 2) {
+    return <p className="text-cream/40 text-sm">Not enough sync history yet to show a trend.</p>;
+  }
+
+  const width = 600;
+  const height = 160;
+  const padding = 24;
+  const points = history.map((h) => ({
+    checked: h.products_checked || 0,
+    discovered: discoveredFromDetails(h.details),
+    hasErrors: (h.errors || 0) > 0,
+    date: new Date(h.run_at),
+  }));
+
+  const maxChecked = Math.max(...points.map((p) => p.checked), 1);
+  const maxDiscovered = Math.max(...points.map((p) => p.discovered), 1);
+  const stepX = (width - padding * 2) / (points.length - 1);
+
+  const pathFor = (values, max) =>
+    values
+      .map((v, i) => {
+        const x = padding + i * stepX;
+        const y = height - padding - (v / max) * (height - padding * 2);
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+
+  const checkedPath = pathFor(points.map((p) => p.checked), maxChecked);
+  const discoveredPath = pathFor(points.map((p) => p.discovered), maxDiscovered);
+
+  return (
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-40">
+        <path d={checkedPath} fill="none" stroke="rgb(var(--color-gold))" strokeWidth="2" />
+        <path d={discoveredPath} fill="none" stroke="#22c55e" strokeWidth="2" />
+        {points.map((p, i) =>
+          p.hasErrors ? (
+            <circle
+              key={i}
+              cx={padding + i * stepX}
+              cy={height - padding - (p.checked / maxChecked) * (height - padding * 2)}
+              r="3.5"
+              fill="#ef4444"
+            />
+          ) : null
+        )}
+      </svg>
+      <div className="flex items-center gap-4 text-xs text-cream/50 mt-2">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-gold inline-block" /> Checked
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Discovered
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> Run had errors
+        </span>
+        <span className="ml-auto">
+          {points[0].date.toLocaleDateString()} — {points[points.length - 1].date.toLocaleDateString()}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function ClicksTrend({ today, yesterday }) {
@@ -242,6 +323,11 @@ export default async function AdminDashboardPage() {
         ) : (
           <p className="text-cream/40 text-sm mt-2">No sync runs recorded yet.</p>
         )}
+      </div>
+
+      <div className="card-surface rounded-lg p-5 mb-8">
+        <p className="text-gold font-semibold text-sm mb-3">📈 Sync Health — Last 30 Runs</p>
+        <SyncHealthChart history={stats.syncHistory} />
       </div>
 
       <div className="card-surface rounded-lg p-5 text-sm text-cream/70 leading-relaxed">

@@ -11,7 +11,7 @@ import slugify from "slugify";
 // automatically, so this is safe to set high regardless of plan.
 export const maxDuration = 300;
 
-const NEW_PRODUCTS_PER_CATEGORY = 2;
+const NEW_PRODUCTS_PER_CATEGORY = 4;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -102,8 +102,32 @@ async function discoverNewDeals() {
   let discoveryErrors = 0;
   const details = [];
 
+  const { data: settingsRows } = await supabaseAdmin
+    .from("site_settings")
+    .select("key, value")
+    .in("key", ["discovery_enabled", "discovery_keywords"]);
+  const settings = {};
+  (settingsRows || []).forEach((row) => (settings[row.key] = row.value));
+
+  // Default to enabled if the setting has never been saved.
+  const discoveryEnabled = settings.discovery_enabled !== "false";
+  const customKeywords = (settings.discovery_keywords || "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+
+  if (!discoveryEnabled) {
+    return {
+      discovered: 0,
+      megaDealsFound: 0,
+      discoveryErrors: 0,
+      details: ["Auto-discovery is paused (toggle it back on in Sync Logs to resume)."],
+    };
+  }
+
   const { data: allCategories } = await supabaseAdmin.from("categories").select("id, name, slug");
   const megaDealsCategory = (allCategories || []).find((c) => c.slug === "mega-deals");
+  const genieChoiceCategory = (allCategories || []).find((c) => c.slug === "genies-choice");
   const regularCategories = (allCategories || []).filter(
     (c) => c.slug !== "mega-deals" && c.slug !== "genies-choice"
   );
@@ -143,7 +167,7 @@ async function discoverNewDeals() {
       await sleep(1000);
       const results = await searchWithPacing(`${category.name}${KEYWORD_SUFFIX}`, SEARCH_PAGE);
       const fresh = results.filter((p) => !existingAsins.has(p.asin));
-      const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.25);
+      const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
 
       for (const item of best) {
         try {
@@ -159,6 +183,33 @@ async function discoverNewDeals() {
     } catch (err) {
       discoveryErrors += 1;
       details.push(`Discovery search (${category.name}): ${err.message}`);
+    }
+  }
+
+  // Custom keywords the admin typed in — searched directly, independent of
+  // any category, so this works even for things that don't map neatly to
+  // an existing category. Landed in Genie's Choice as a catch-all.
+  for (const keyword of customKeywords) {
+    try {
+      await sleep(1000);
+      const results = await searchWithPacing(keyword, SEARCH_PAGE);
+      const fresh = results.filter((p) => !existingAsins.has(p.asin));
+      const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
+
+      for (const item of best) {
+        try {
+          const { error } = await insertDiscoveredProduct(item, genieChoiceCategory?.id || null);
+          if (error) throw error;
+          existingAsins.add(item.asin);
+          discovered += 1;
+        } catch (err) {
+          discoveryErrors += 1;
+          details.push(`Custom keyword insert ("${keyword}"): ${err.message}`);
+        }
+      }
+    } catch (err) {
+      discoveryErrors += 1;
+      details.push(`Custom keyword search ("${keyword}"): ${err.message}`);
     }
   }
 

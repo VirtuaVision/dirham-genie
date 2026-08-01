@@ -33,13 +33,13 @@ export default function CouponBanner({ config = {}, priority = false }) {
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
             />
-            <div className="absolute inset-0 bg-black/45" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-transparent" />
           </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-700" />
         )}
         <div className="relative">
-          <h3 className="font-display text-2xl md:text-3xl mb-2">{config.heading || "Extra Savings Unlocked"}</h3>
+          <h3 className="font-display text-2xl md:text-3xl mb-2 [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]">{config.heading || "Extra Savings Unlocked"}</h3>
           <p className="text-white/85 text-sm mb-4 max-w-md">
             {config.subheading || "Use this code at checkout on Amazon.ae"}
           </p>

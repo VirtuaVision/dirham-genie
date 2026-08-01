@@ -20,29 +20,27 @@ export default function CouponBanner({ config = {}, priority = false }) {
     setTimeout(() => setCopiedCode((current) => (current === code ? null : current)), 2000);
   }
 
-  if (useImageStyle) {
-    return (
-      <section className="max-w-6xl mx-auto px-4 py-4">
-        <Link href={config.link || "/deals/latest"} className="block rounded-xl overflow-hidden border border-gold/20">
-          <img
-            src={config.image}
-            alt={config.heading || "Coupon"}
-            className="w-full h-auto"
-            loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "auto"}
-            decoding="async"
-          />
-        </Link>
-      </section>
-    );
-  }
-
   return (
     <section className="max-w-6xl mx-auto px-4 py-4">
-      <div className="rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 p-6 md:p-8 text-white flex items-center justify-between gap-6 flex-wrap">
-        <div>
+      <div className="relative rounded-xl overflow-hidden p-6 md:p-8 text-white flex items-center justify-between gap-6 flex-wrap">
+        {useImageStyle ? (
+          <>
+            <img
+              src={config.image}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "auto"}
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-black/45" />
+          </>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-700" />
+        )}
+        <div className="relative">
           <h3 className="font-display text-2xl md:text-3xl mb-2">{config.heading || "Extra Savings Unlocked"}</h3>
-          <p className="text-teal-50 text-sm mb-4 max-w-md">
+          <p className="text-white/85 text-sm mb-4 max-w-md">
             {config.subheading || "Use this code at checkout on Amazon.ae"}
           </p>
           <div className="flex items-center gap-3 flex-wrap">
@@ -63,7 +61,7 @@ export default function CouponBanner({ config = {}, priority = false }) {
             </Link>
           </div>
         </div>
-        <span className="hidden md:block text-6xl opacity-90 shrink-0">🎟️</span>
+        {!useImageStyle && <span className="relative hidden md:block text-6xl opacity-90 shrink-0">🎟️</span>}
       </div>
     </section>
   );

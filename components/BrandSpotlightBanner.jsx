@@ -18,7 +18,7 @@ export default function BrandSpotlightBanner({ config = {}, priority = false }) 
               fetchPriority={priority ? "high" : "auto"}
               decoding="async"
             />
-            <div className="absolute inset-0 bg-black/50" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-transparent" />
           </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-r from-slate-700 to-slate-900" />
@@ -33,7 +33,7 @@ export default function BrandSpotlightBanner({ config = {}, priority = false }) 
           />
         )}
         <div className="relative">
-          <h3 className="font-display text-2xl md:text-3xl mb-2">{config.heading || "Brand Spotlight"}</h3>
+          <h3 className="font-display text-2xl md:text-3xl mb-2 [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]">{config.heading || "Brand Spotlight"}</h3>
           <p className="text-white/85 text-sm mb-4 max-w-md">
             {config.subheading || "This week's featured brand — top picks, best prices."}
           </p>

@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import CookieConsent from "@/components/CookieConsent";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
+import InstallPrompt from "@/components/InstallPrompt";
 import ConditionalChrome from "@/components/ConditionalChrome";
 import { getLocale } from "@/lib/i18n";
 
@@ -33,19 +34,35 @@ export const metadata = {
     "Dirham Genie finds the best Amazon.ae deals in the UAE, every day. Genuine prices, genuine picks, genuine savings in dirhams.",
   metadataBase: new URL("https://dirhamgenie.com"),
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Dirham Genie",
+  },
   openGraph: {
     title: "Dirham Genie | Unlocking the Best Deals Every Day",
     description: "Dirham Genie finds the best Amazon.ae deals in the UAE, every day.",
     siteName: "Dirham Genie",
-    images: [{ url: "/logo-dirham-genie.png", width: 1080, height: 1080 }],
+    images: [{ url: "/icon-512.png", width: 512, height: 512 }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Dirham Genie | Unlocking the Best Deals Every Day",
     description: "Dirham Genie finds the best Amazon.ae deals in the UAE, every day.",
-    images: ["/logo-dirham-genie.png"],
+    images: ["/icon-512.png"],
   },
+};
+
+export const viewport = {
+  themeColor: "#0B0B10",
 };
 
 export default function RootLayout({ children }) {
@@ -92,6 +109,7 @@ export default function RootLayout({ children }) {
         </Script>
         <GoogleAnalytics />
         <ServiceWorkerRegister />
+        <InstallPrompt />
         <ConditionalChrome>
           <Header />
           <SocialIconsBar />

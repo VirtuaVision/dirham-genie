@@ -72,13 +72,23 @@ export default function PageBuilderPage() {
   }
 
   async function saveConfig(block, newConfig) {
-    setBlocks((prev) => prev.map((b) => (b.id === block.id ? { ...b, config: newConfig } : b)));
-    await fetch(`/api/admin/homepage-blocks/${block.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ config: newConfig }),
-    });
-    setEditingId(null);
+    try {
+      const res = await fetch(`/api/admin/homepage-blocks/${block.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: newConfig }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Save failed.");
+      // Only update local state (and close the editor) once the server
+      // confirms it actually saved — previously this happened optimistically
+      // before the request even finished, so a failed save looked
+      // successful until the next page reload silently reverted it.
+      setBlocks((prev) => prev.map((b) => (b.id === block.id ? json.block : b)));
+      setEditingId(null);
+    } catch (err) {
+      setError(`Couldn't save "${BLOCK_TYPES[block.type]?.label || block.type}": ${err.message}`);
+    }
   }
 
   async function deleteBlock(block) {

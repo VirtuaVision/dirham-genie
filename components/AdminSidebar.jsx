@@ -19,6 +19,7 @@ const links = [
  { href: "/admin/social-post", label: "Social Post Generator" },
 { href: "/admin/ai-image-studio", label: "AI Image Studio" },
   { href: "/admin/sync-logs", label: "Sync Logs" },
+  { href: "/admin/search-insights", label: "Search Insights" },
   { href: "/admin/team", label: "Team Access" },
   { href: "/admin/settings", label: "Site Settings" },
 ];

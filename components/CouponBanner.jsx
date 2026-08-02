@@ -62,6 +62,7 @@ export default function CouponBanner({ config = {}, priority = false }) {
           </div>
         </div>
         {!useImageStyle && <span className="relative hidden md:block text-6xl opacity-90 shrink-0">🎟️</span>}
+
       </div>
     </section>
   );

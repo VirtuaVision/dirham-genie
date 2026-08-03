@@ -22,25 +22,24 @@ export default function CouponBanner({ config = {}, priority = false }) {
 
   return (
     <section className="max-w-6xl mx-auto px-4 py-4">
-      <div className="relative rounded-xl overflow-hidden p-6 md:p-8 flex items-center justify-between gap-6 flex-wrap">
+      <div className="relative rounded-xl overflow-hidden p-6 md:p-8 text-white flex items-center justify-between gap-6 flex-wrap">
         {useImageStyle ? (
-          <img
-            src={config.image}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : "auto"}
-            decoding="async"
-          />
+          <>
+            <img
+              src={config.image}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              loading={priority ? "eager" : "lazy"}
+              fetchPriority={priority ? "high" : "auto"}
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/15 to-transparent" />
+          </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-700" />
         )}
-        <div
-          className={`relative text-white ${
-            useImageStyle ? "bg-black/60 backdrop-blur-sm rounded-lg px-5 py-4 max-w-md" : ""
-          }`}
-        >
-          <h3 className="font-display text-2xl md:text-3xl mb-2">{config.heading || "Extra Savings Unlocked"}</h3>
+        <div className="relative">
+          <h3 className="font-display text-2xl md:text-3xl mb-2 [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]">{config.heading || "Extra Savings Unlocked"}</h3>
           <p className="text-white/85 text-sm mb-4 max-w-md">
             {config.subheading || "Use this code at checkout on Amazon.ae"}
           </p>
@@ -62,7 +61,7 @@ export default function CouponBanner({ config = {}, priority = false }) {
             </Link>
           </div>
         </div>
-        {!useImageStyle && <span className="relative hidden md:block text-6xl opacity-90 shrink-0 text-white">🎟️</span>}
+        {!useImageStyle && <span className="relative hidden md:block text-6xl opacity-90 shrink-0">🎟️</span>}
       </div>
     </section>
   );

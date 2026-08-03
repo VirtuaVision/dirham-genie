@@ -10,7 +10,7 @@ export default function WhatsAppBanner({ config = {} }) {
         {useImageStyle ? (
           <>
             <img src={config.image} alt="" className="absolute inset-0 w-full h-full object-cover" loading="lazy" decoding="async" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/35 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/15 to-transparent" />
           </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-700" />

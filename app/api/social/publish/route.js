@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminLoggedIn } from "@/lib/auth";
 import { uploadGeneratedImage, postToFacebookPage, postToInstagram } from "@/lib/socialPost";
+import { postToWhatsAppChannel } from "@/lib/whatsappChannel";
 
 export async function POST(request) {
   if (!(await isAdminLoggedIn())) {
@@ -31,6 +32,12 @@ export async function POST(request) {
     results.instagram = await postToInstagram(imageUrl, caption);
   } catch (err) {
     results.instagram = { ok: false, error: err.message };
+  }
+
+  try {
+    results.whatsapp = await postToWhatsAppChannel(imageUrl, caption);
+  } catch (err) {
+    results.whatsapp = { ok: false, error: err.message };
   }
 
   return NextResponse.json({ imageUrl, results });

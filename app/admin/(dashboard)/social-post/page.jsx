@@ -55,6 +55,23 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
+// Draws a logo image cropped to a circle (cover-fit, so it fills the
+// circle without stretching or squishing regardless of the source image's
+// aspect ratio) — matches the actual round Dirham Genie logo mark.
+function drawCircularLogo(ctx, img, cx, cy, radius) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  const size = radius * 2;
+  const scale = Math.max(size / img.width, size / img.height);
+  const iw = img.width * scale;
+  const ih = img.height * scale;
+  ctx.drawImage(img, cx - iw / 2, cy - ih / 2, iw, ih);
+  ctx.restore();
+}
+
 // Fills n cards into one row (n=1,2,3) or a 2x2 grid (n=4), always using
 // the full available area — no empty cells regardless of how many are picked.
 function computeLayout(n, areaX, areaY, areaW, areaH, gap, stackVertical) {
@@ -81,19 +98,15 @@ function computeLayout(n, areaX, areaY, areaW, areaH, gap, stackVertical) {
   return positions;
 }
 
-// Rotating caption ingredients — picked randomly each time generate() runs
-// so posts don't all read like the same template copy-pasted with new
-// prices. Swapped in and out of the same reliable structure (hook, per-
-// product lines, CTA, hashtags) rather than randomizing structure itself.
 const CAPTION_HOOKS = [
-  "🧞‍♂️ Your wish has been granted! Today's best deals from Dirham Genie:",
-  "🪔 Rubbed the lamp and THIS came out. Today's top picks:",
-  "🔥 Stop scrolling — these deals won't last:",
-  "🧞‍♂️ The genie has spoken. Here's what's worth grabbing today:",
-  "💫 Real discounts, real prices, zero nonsense. Today's finds:",
-  "🚨 Deal alert! The genie found these so you don't have to search:",
-  "🪔 Three wishes? Nah, we found you these instead:",
-  "✨ Today's lamp rub delivered some serious savings:",
+  "🧞‍♂️ Your wish has been granted! Today's best Amazon deals from Dirham Genie:",
+  "🪔 Rubbed the lamp and THIS came out. Today's top Amazon picks:",
+  "🔥 Stop scrolling — these Amazon deals won't last:",
+  "🧞‍♂️ The genie has spoken. Here's what's worth grabbing on Amazon today:",
+  "💫 Real discounts, real prices, zero nonsense. Today's Amazon finds:",
+  "🚨 Deal alert! The genie found these Amazon deals so you don't have to search:",
+  "🪔 Three wishes? Nah, we found you these Amazon deals instead:",
+  "✨ Today's lamp rub delivered some serious Amazon savings:",
 ];
 const CAPTION_CTAS = [
   "Tap the link before the price changes back 👆",
@@ -113,44 +126,37 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function SocialPostPageInner() {
+const PLATFORM_LABELS = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+};
+const PLATFORM_COLORS = {
+  facebook: "#1877F2",
+  instagram: "#C13584",
+  whatsapp: "#25D366",
+};
+
+function PostGeneratorCard({ title, description, products, loading, platforms, preselectProductId }) {
   const canvasRef = useRef(null);
-  const searchParams = useSearchParams();
-  const preselectProductId = searchParams.get("product");
-  const [products, setProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [rendering, setRendering] = useState(false);
   const [caption, setCaption] = useState("");
   const [format, setFormat] = useState("square");
   const [error, setError] = useState(null);
-  const [publishing, setPublishing] = useState(false);
+  const [publishingPlatform, setPublishingPlatform] = useState(null);
   const [publishResult, setPublishResult] = useState(null);
 
   useEffect(() => {
-    fetch("/api/products")
-      .then((r) => r.json())
-      .then((json) => {
-        const active = (json.products || []).filter((p) => p.is_active);
-        setProducts(active);
-
-        // Coming from "Create Post" on a Search Amazon result — pre-select
-        // that specific product regardless of where it sorts.
-        if (preselectProductId) {
-          const match = active.find((p) => String(p.id) === String(preselectProductId));
-          setSelected(match ? [match.id] : active.slice(0, MAX_SLOTS).map((p) => p.id));
-        } else {
-          setSelected(active.slice(0, MAX_SLOTS).map((p) => p.id));
-        }
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, [preselectProductId]);
+    if (!preselectProductId || products.length === 0) return;
+    const match = products.find((p) => String(p.id) === String(preselectProductId));
+    if (match) setSelected([match.id]);
+  }, [preselectProductId, products]);
 
   const filteredProducts = search
     ? products.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
-    : products.slice(0, 10); // no search yet — just show the 10 most recent to start
+    : products.slice(0, 10);
 
   function toggleSelect(id) {
     setSelected((prev) => {
@@ -163,6 +169,7 @@ function SocialPostPageInner() {
   async function generate() {
     setRendering(true);
     setError(null);
+    setPublishResult(null);
     try {
       const chosen = products.filter((p) => selected.includes(p.id)).slice(0, MAX_SLOTS);
       if (chosen.length === 0) {
@@ -178,34 +185,27 @@ function SocialPostPageInner() {
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
 
-      // Light background — cream to white
       const bgGradient = ctx.createLinearGradient(0, 0, 0, H);
       bgGradient.addColorStop(0, "#FAF7F2");
       bgGradient.addColorStop(1, "#FFFFFF");
       ctx.fillStyle = bgGradient;
       ctx.fillRect(0, 0, W, H);
 
-      // Header: logo mark (aspect-ratio preserved, no more squishing) + title
       try {
         const logo = await loadImage("/logo-dirham-genie.png");
-        const boxSize = 96;
-        const scale = Math.min(boxSize / logo.width, boxSize / logo.height);
-        const w = logo.width * scale;
-        const h = logo.height * scale;
-        ctx.drawImage(logo, 40 + (boxSize - w) / 2, 32 + (boxSize - h) / 2, w, h);
+        drawCircularLogo(ctx, logo, 40 + 48, 32 + 48, 48);
       } catch {
         // logo failed to load; continue without it
       }
 
       ctx.fillStyle = "#92400E";
-      ctx.font = "bold 46px Arial";
+      ctx.font = "bold 40px Arial";
       ctx.textBaseline = "top";
-      ctx.fillText("TODAY'S BEST DEALS", 150, 55);
+      ctx.fillText("TODAY'S BEST AMAZON DEALS", 150, 55);
       ctx.fillStyle = "rgba(43,34,28,0.55)";
       ctx.font = "26px Arial";
       ctx.fillText("Dirham Genie · dirham-genie.vercel.app", 150, 108);
 
-      // Product cards — dynamic layout, always fills the available space
       const areaX = 24, areaY = 170, areaW = W - 48, areaH = H - 170 - 70;
       const isSpotlight = chosen.length === 1;
       const stackVertical = format === "story" && chosen.length <= 3;
@@ -223,9 +223,6 @@ function SocialPostPageInner() {
         roundRect(ctx, x, y, w, h, 20);
         ctx.stroke();
 
-        // A single product gets a "spotlight" treatment — the image fills
-        // most of the card instead of sitting small in a sea of white
-        // space, and text scales up to match.
         const imgBox = isSpotlight ? Math.min(w * 0.7, h * 0.62) : Math.min(w * 0.85, h * 0.55);
         const imgTopPad = isSpotlight ? h * 0.06 : 20;
         if (p.image_url) {
@@ -242,8 +239,6 @@ function SocialPostPageInner() {
 
         const discount = discountPercent(p.price, p.list_price);
         if (discount) {
-          // Bigger, bolder badge — was easy to miss before, especially at
-          // a glance while scrolling a feed.
           const badgeW = isSpotlight ? 150 : 108;
           const badgeH = isSpotlight ? 64 : 48;
           const badgeFont = isSpotlight ? 34 : 26;
@@ -256,13 +251,13 @@ function SocialPostPageInner() {
         }
 
         ctx.fillStyle = "#2B221C";
-        const titleFontSize = isSpotlight ? 34 : Math.max(18, Math.min(26, w / 14));
+        const titleFontSize = isSpotlight ? 28 : Math.max(16, Math.min(22, w / 16));
         ctx.font = `${titleFontSize}px Arial`;
-        const titleY = y + imgTopPad + imgBox + (isSpotlight ? 24 : 16);
-        const titleLineHeight = isSpotlight ? 42 : 30;
-        const titleHeight = wrapText(ctx, p.title, x + 20, titleY, w - 40, titleLineHeight, isSpotlight ? 3 : 2);
+        const titleY = y + imgTopPad + imgBox + (isSpotlight ? 20 : 14);
+        const titleLineHeight = isSpotlight ? 34 : 26;
+        const titleHeight = wrapText(ctx, p.title, x + 20, titleY, w - 40, titleLineHeight, 1);
 
-        const priceY = titleY + titleHeight + (isSpotlight ? 20 : 14);
+        const priceY = titleY + titleHeight + (isSpotlight ? 18 : 12);
         const priceText = formatAed(p.price) || "See price";
 
         ctx.fillStyle = "#92400E";
@@ -293,7 +288,6 @@ function SocialPostPageInner() {
       ctx.font = "18px Arial";
       ctx.fillText("dirham-genie.vercel.app", areaX, H - 40);
 
-      // Caption — discount %, correct link, and social pages included
       const lines = chosen.map((p) => {
         const price = formatAed(p.price) || "See price on Amazon";
         const discount = discountPercent(p.price, p.list_price);
@@ -328,8 +322,8 @@ function SocialPostPageInner() {
     link.click();
   }
 
-  async function publishToSocial() {
-    setPublishing(true);
+  async function publishToSocial(targetPlatforms) {
+    setPublishingPlatform(targetPlatforms.length === 1 ? targetPlatforms[0] : "all");
     setPublishResult(null);
     setError(null);
     try {
@@ -338,7 +332,7 @@ function SocialPostPageInner() {
       const res = await fetch("/api/social/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl, caption, format }),
+        body: JSON.stringify({ imageDataUrl, caption, format, platforms: targetPlatforms }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -346,7 +340,7 @@ function SocialPostPageInner() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setPublishing(false);
+      setPublishingPlatform(null);
     }
   }
 
@@ -354,24 +348,23 @@ function SocialPostPageInner() {
     navigator.clipboard.writeText(caption);
   }
 
+  const showAllButton = platforms.length > 1;
+
   return (
-    <div>
-      <h1 className="font-display text-2xl text-gold mb-2">Social Post Generator</h1>
-      <p className="text-cream/50 text-sm mb-6">
-        Pick up to {MAX_SLOTS} products (search to find older ones), choose a format, and
-        generate a ready-to-share image plus a caption with all the affiliate links included.
-      </p>
+    <div className="card-surface rounded-lg p-4 mb-8">
+      <h2 className="font-display text-lg text-gold mb-1">{title}</h2>
+      <p className="text-cream/50 text-xs mb-4">{description}</p>
 
       {error && (
-        <p className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded p-3 mb-4">
+        <p className="bg-red-50 border border-red-300 text-red-700 text-sm rounded p-3 mb-4 font-medium">
           {error}
         </p>
       )}
 
       {loading ? (
-        <p className="text-cream/50 text-sm">Loading recent products...</p>
+        <p className="text-cream/50 text-sm">Loading products...</p>
       ) : (
-        <div className="card-surface rounded-lg p-4 mb-6">
+        <div className="bg-white/5 rounded-lg p-4 mb-6">
           <p className="text-xs text-cream/60 mb-2">Image format:</p>
           <div className="flex flex-wrap gap-2 mb-4">
             {Object.entries(FORMATS).map(([key, f]) => (
@@ -447,10 +440,10 @@ function SocialPostPageInner() {
 
         {caption && (
           <div>
-            <p className="text-xs text-cream/60 mb-2">Caption (ready to paste):</p>
+            <p className="text-xs text-cream/60 mb-2">Caption (edit before posting if you like):</p>
             <textarea
-              readOnly
               value={caption}
+              onChange={(e) => setCaption(e.target.value)}
               rows={14}
               className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
             />
@@ -461,47 +454,56 @@ function SocialPostPageInner() {
               >
                 Copy Caption
               </button>
-              <button
-                onClick={publishToSocial}
-                disabled={publishing}
-                className="rounded-md text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
-                style={{ backgroundColor: "#3B5BDB" }}
-              >
-                {publishing
-                  ? "Posting..."
-                  : format === "story"
-                    ? "📤 Post Story to Facebook & Instagram (+ WhatsApp post)"
-                    : "📤 Post to WhatsApp, Facebook & Instagram"}
-              </button>
+
+              {platforms.map((platform) => (
+                <button
+                  key={platform}
+                  onClick={() => publishToSocial([platform])}
+                  disabled={publishingPlatform !== null}
+                  className="rounded-md text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
+                  style={{ backgroundColor: PLATFORM_COLORS[platform] }}
+                >
+                  {publishingPlatform === platform ? "Posting..." : `📤 Post to ${PLATFORM_LABELS[platform]}`}
+                </button>
+              ))}
+
+              {showAllButton && (
+                <button
+                  onClick={() => publishToSocial(platforms)}
+                  disabled={publishingPlatform !== null}
+                  className="rounded-md text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
+                  style={{ backgroundColor: "#3B5BDB" }}
+                >
+                  {publishingPlatform === "all" ? "Posting..." : "📤 Post to All"}
+                </button>
+              )}
             </div>
 
-            {format === "story" && (
+            {format === "story" && platforms.includes("facebook") && (
               <p className="text-xs text-cream/50 mt-2">
                 Posts as a Story to Facebook &amp; Instagram (no caption support on Stories via
-                the API — your caption below is for the copy button only). WhatsApp Channel still
+                the API — your caption above is for the copy button only). WhatsApp Channel still
                 gets a normal post with the full caption attached.
               </p>
             )}
 
             {publishResult && (
-              <div className="mt-4 space-y-2 text-sm">
+              <div className="mt-4 space-y-2 text-sm bg-white/90 rounded-md p-3 border border-gold/20">
                 {["whatsapp", "facebook", "instagram"].map((platform) => {
                   const r = publishResult[platform];
                   if (!r) return null;
-                  const label =
-                    platform === "facebook" ? "Facebook" : platform === "instagram" ? "Instagram" : "WhatsApp";
                   return (
                     <p
                       key={platform}
                       className={
                         r.ok
-                          ? "text-deal-green"
+                          ? "text-green-700 font-semibold"
                           : r.skipped
-                          ? "text-cream/50"
-                          : "text-red-300"
+                          ? "text-gray-600"
+                          : "text-red-700 font-semibold"
                       }
                     >
-                      {label}:{" "}
+                      {PLATFORM_LABELS[platform]}:{" "}
                       {r.ok
                         ? "Posted successfully! ✅"
                         : r.skipped
@@ -515,6 +517,52 @@ function SocialPostPageInner() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function SocialPostPageInner() {
+  const searchParams = useSearchParams();
+  const preselectProductId = searchParams.get("product");
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((r) => r.json())
+      .then((json) => {
+        const active = (json.products || []).filter((p) => p.is_active);
+        setProducts(active);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      <h1 className="font-display text-2xl text-gold mb-2">Social Post Generator</h1>
+      <p className="text-cream/50 text-sm mb-6">
+        Pick up to {MAX_SLOTS} products (search to find older ones), choose a format, and
+        generate a ready-to-share image plus a caption with all the affiliate links included.
+      </p>
+
+      <PostGeneratorCard
+        title="All Platforms"
+        description="Generate once, then post to Facebook, Instagram, and WhatsApp — individually or all at once."
+        products={products}
+        loading={loading}
+        platforms={["facebook", "instagram", "whatsapp"]}
+        preselectProductId={preselectProductId}
+      />
+
+      <PostGeneratorCard
+        title="Instagram Only"
+        description="A separate generator just for Instagram — pick products, tweak the caption, and post there alone without touching Facebook or WhatsApp."
+        products={products}
+        loading={loading}
+        platforms={["instagram"]}
+        preselectProductId={null}
+      />
     </div>
   );
 }

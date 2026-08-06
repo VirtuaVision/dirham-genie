@@ -144,6 +144,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
   const [rendering, setRendering] = useState(false);
   const [caption, setCaption] = useState("");
   const [format, setFormat] = useState("square");
+  const [includeSocialLinks, setIncludeSocialLinks] = useState(true);
   const [error, setError] = useState(null);
   const [publishingPlatform, setPublishingPlatform] = useState(null);
   const [publishResult, setPublishResult] = useState(null);
@@ -296,14 +297,17 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
           : price;
         return `✨ ${truncateTitle(p.title)}\n💰 ${priceLine}\n🔗 ${p.affiliate_url}`;
       });
+      const socialLinksBlock = includeSocialLinks
+        ? `📲 WhatsApp: https://whatsapp.com/channel/0029VbDuCjs8F2pFx9WrrQ1b\n` +
+          `👍 Facebook: https://www.facebook.com/share/1NpqYbsc6R/\n` +
+          `📸 Instagram: https://www.instagram.com/dirham_genie\n\n`
+        : "";
       const generatedCaption =
         `${pickRandom(CAPTION_HOOKS)}\n\n` +
         lines.join("\n\n") +
         `\n\n${pickRandom(CAPTION_CTAS)}\n\n` +
         `📍 Shop more: https://dirham-genie.vercel.app/\n` +
-        `📲 WhatsApp: https://whatsapp.com/channel/0029VbDuCjs8F2pFx9WrrQ1b\n` +
-        `👍 Facebook: https://www.facebook.com/share/1NpqYbsc6R/\n` +
-        `📸 Instagram: https://www.instagram.com/dirham_genie\n\n` +
+        socialLinksBlock +
         `${pickRandom(CAPTION_SIGNOFFS)}\n\n` +
         `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay`;
       setCaption(generatedCaption);
@@ -317,8 +321,8 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
   function downloadImage() {
     const canvas = canvasRef.current;
     const link = document.createElement("a");
-    link.download = `dirham-genie-post-${format}.png`;
-    link.href = canvas.toDataURL("image/png");
+    link.download = `dirham-genie-post-${format}.jpg`;
+    link.href = canvas.toDataURL("image/jpeg", 0.92);
     link.click();
   }
 
@@ -328,7 +332,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
     setError(null);
     try {
       const canvas = canvasRef.current;
-      const imageDataUrl = canvas.toDataURL("image/png");
+      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.92);
       const res = await fetch("/api/social/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -411,6 +415,26 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
               </label>
             ))}
           </div>
+
+          <label className="flex items-center gap-2 mt-4 text-sm text-cream/80 cursor-pointer w-fit">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={includeSocialLinks}
+              onClick={() => setIncludeSocialLinks((v) => !v)}
+              className={`relative w-10 h-6 rounded-full transition-colors ${
+                includeSocialLinks ? "bg-gold" : "bg-white/20"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                  includeSocialLinks ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+            Include WhatsApp/Facebook/Instagram links in caption
+          </label>
+
           <button
             onClick={generate}
             disabled={rendering}

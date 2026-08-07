@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+hiimport { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
 import slugify from "slugify";
@@ -87,8 +87,13 @@ export async function POST(request) {
   }
 
   notifyDealAlertSubscribers(data); // fire-and-forget, doesn't block the response
-  autoPostNewProduct(data); // fire-and-forget, doesn't block the response
   autoGenerateAIImageForNewProduct(data); // fire-and-forget, off by default — see AI_IMAGE_AUTO_GENERATE
 
+  // Awaited (not fire-and-forget) — this now includes a screenshot capture
+  // step that can take several seconds, and Vercel can kill background
+  // work after the response is sent if it isn't explicitly awaited. A few
+  // extra seconds on Save is a fair trade for the post actually completing
+  // every time instead of silently dropping on slower runs.
+  await autoPostNewProduct(data);
+
   return NextResponse.json({ product: data });
-}

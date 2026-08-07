@@ -97,3 +97,4 @@ export async function POST(request) {
   await autoPostNewProduct(data);
 
   return NextResponse.json({ product: data });
+}

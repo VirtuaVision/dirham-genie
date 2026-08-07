@@ -1,4 +1,4 @@
-hiimport { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
 import slugify from "slugify";

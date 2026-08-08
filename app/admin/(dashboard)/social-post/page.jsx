@@ -55,9 +55,6 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Draws a logo image cropped to a circle (cover-fit, so it fills the
-// circle without stretching or squishing regardless of the source image's
-// aspect ratio) — matches the actual round Dirham Genie logo mark.
 function drawCircularLogo(ctx, img, cx, cy, radius) {
   ctx.save();
   ctx.beginPath();
@@ -72,8 +69,6 @@ function drawCircularLogo(ctx, img, cx, cy, radius) {
   ctx.restore();
 }
 
-// Fills n cards into one row (n=1,2,3) or a 2x2 grid (n=4), always using
-// the full available area — no empty cells regardless of how many are picked.
 function computeLayout(n, areaX, areaY, areaW, areaH, gap, stackVertical) {
   const positions = [];
   if (n === 4) {
@@ -144,7 +139,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
   const [rendering, setRendering] = useState(false);
   const [caption, setCaption] = useState("");
   const [format, setFormat] = useState("square");
-  const [includeSocialLinks, setIncludeSocialLinks] = useState(true);
+  const [includeSocialLinks, setIncludeSocialLinks] = useState(false);
   const [error, setError] = useState(null);
   const [publishingPlatform, setPublishingPlatform] = useState(null);
   const [publishResult, setPublishResult] = useState(null);

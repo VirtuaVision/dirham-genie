@@ -18,6 +18,56 @@ const emptyForm = {
   source: "manual",
 };
 
+const PLATFORM_LABELS = { facebook: "Facebook", instagram: "Instagram", whatsapp: "WhatsApp" };
+
+function SocialResultsPanel({ results }) {
+  if (!results) return null;
+  return (
+    <div className="mt-3 space-y-1.5 text-sm bg-white/90 rounded-md p-3 border border-gold/20">
+      {["whatsapp", "facebook", "instagram"].map((platform) => {
+        const r = results[platform];
+        if (!r) return null;
+        return (
+          <p
+            key={platform}
+            className={
+              r.ok
+                ? "text-green-700 font-semibold"
+                : r.skipped
+                ? "text-gray-600"
+                : "text-red-700 font-semibold"
+            }
+          >
+            {PLATFORM_LABELS[platform]}:{" "}
+            {r.ok ? "Posted successfully! ✅" : r.skipped ? r.reason : `Failed — ${r.error}`}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function SocialLinksToggle({ value, onChange }) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-cream/80 cursor-pointer w-fit mb-4">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={value}
+        onClick={() => onChange(!value)}
+        className={`relative w-10 h-6 rounded-full transition-colors ${value ? "bg-gold" : "bg-white/20"}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+            value ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </button>
+      Include WhatsApp/Facebook/Instagram links in the auto-posted caption
+    </label>
+  );
+}
+
 export default function NewProductPage() {
   const router = useRouter();
   const [mode, setMode] = useState("amazon");
@@ -28,14 +78,17 @@ export default function NewProductPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [includeSocialLinks, setIncludeSocialLinks] = useState(true);
+  const [savedSocialResults, setSavedSocialResults] = useState(null);
 
   // --- Search Amazon mode ---
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState(null);
-  const [savingAsin, setSavingAsin] = useState(null); // which result's button is busy
+  const [savingAsin, setSavingAsin] = useState(null);
   const [savedAsins, setSavedAsins] = useState(new Set());
+  const [resultSocialResults, setResultSocialResults] = useState({});
 
   useEffect(() => {
     fetch("/api/categories")
@@ -96,6 +149,7 @@ export default function NewProductPage() {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setSavedSocialResults(null);
     try {
       const res = await fetch("/api/products", {
         method: "POST",
@@ -105,11 +159,13 @@ export default function NewProductPage() {
           category_id: form.category_id || null,
           price: form.price === "" ? null : Number(form.price),
           list_price: form.list_price === "" ? null : Number(form.list_price),
+          includeSocialLinks,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      router.push("/admin/products");
+      setSavedSocialResults(json.socialResults || {});
+      setNotice("Product saved! See posting results below.");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -138,8 +194,6 @@ export default function NewProductPage() {
     }
   }
 
-  // Saves a live search result straight to the site with sensible defaults
-  // (Genie's Choice category, active, not featured) — no form to fill in.
   async function addResultToWebsite(item) {
     setSavingAsin(item.asin);
     setSearchError(null);
@@ -164,11 +218,13 @@ export default function NewProductPage() {
           review_count: item.review_count,
           amazon_category: item.amazon_category,
           amazon_sales_rank: item.amazon_sales_rank,
+          includeSocialLinks,
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setSavedAsins((prev) => new Set(prev).add(item.asin));
+      setResultSocialResults((prev) => ({ ...prev, [item.asin]: json.socialResults || {} }));
       return json.product;
     } catch (err) {
       setSearchError(err.message);
@@ -178,8 +234,6 @@ export default function NewProductPage() {
     }
   }
 
-  // Adds the product (if not already saved) then jumps straight into the
-  // Social Post Generator with it pre-selected.
   async function createPostFromResult(item) {
     setSavingAsin(item.asin);
     setSearchError(null);
@@ -187,7 +241,6 @@ export default function NewProductPage() {
       let productId = null;
 
       if (savedAsins.has(item.asin)) {
-        // already added this session — look it up by ASIN instead of re-inserting
         const saved = await addResultToWebsiteIfMissing(item);
         productId = saved;
       } else {
@@ -205,10 +258,6 @@ export default function NewProductPage() {
     }
   }
 
-  // Helper: if a result was already saved this session, we don't have its
-  // DB id handy (only its ASIN), so re-save is skipped — instead this asks
-  // the products API for it. Falls back to re-inserting if it's not found
-  // (e.g. someone deleted it) so the button never silently does nothing.
   async function addResultToWebsiteIfMissing(item) {
     try {
       const res = await fetch("/api/products");
@@ -252,6 +301,8 @@ export default function NewProductPage() {
           Search Amazon
         </button>
       </div>
+
+      <SocialLinksToggle value={includeSocialLinks} onChange={setIncludeSocialLinks} />
 
       {mode === "amazon" && (
         <form onSubmit={handleAmazonFetch} className="card-surface rounded-lg p-4 mb-6">
@@ -305,7 +356,7 @@ export default function NewProductPage() {
           </form>
 
           {searchError && (
-            <p className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded p-3 mb-4">
+            <p className="bg-red-50 border border-red-300 text-red-700 text-sm rounded p-3 mb-4 font-medium">
               {searchError}
             </p>
           )}
@@ -364,6 +415,7 @@ export default function NewProductPage() {
                         {isBusy ? "Working..." : "📤 Create Post"}
                       </button>
                     </div>
+                    <SocialResultsPanel results={resultSocialResults[item.asin]} />
                   </div>
                 );
               })}
@@ -373,7 +425,7 @@ export default function NewProductPage() {
       )}
 
       {error && (
-        <p className="bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded p-3 mb-4">
+        <p className="bg-red-50 border border-red-300 text-red-700 text-sm rounded p-3 mb-4 font-medium">
           {error}
         </p>
       )}
@@ -554,13 +606,26 @@ export default function NewProductPage() {
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-6 py-2.5 text-sm disabled:opacity-60"
-        >
-          {saving ? "Saving..." : "Save Product"}
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-6 py-2.5 text-sm disabled:opacity-60"
+          >
+            {saving ? "Saving & posting..." : "Save Product"}
+          </button>
+          {savedSocialResults && (
+            <button
+              type="button"
+              onClick={() => router.push("/admin/products")}
+              className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-5 py-2.5 text-sm"
+            >
+              Done — View All Products
+            </button>
+          )}
+        </div>
+
+        <SocialResultsPanel results={savedSocialResults} />
       </form>
       )}
     </div>

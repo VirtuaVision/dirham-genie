@@ -78,10 +78,9 @@ export default function NewProductPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
-  const [includeSocialLinks, setIncludeSocialLinks] = useState(true);
+  const [includeSocialLinks, setIncludeSocialLinks] = useState(false);
   const [savedSocialResults, setSavedSocialResults] = useState(null);
 
-  // --- Search Amazon mode ---
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);

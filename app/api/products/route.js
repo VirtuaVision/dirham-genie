@@ -86,16 +86,11 @@ export async function POST(request) {
     await supabaseAdmin.from("price_history").insert({ product_id: data.id, price: data.price });
   }
 
-  notifyDealAlertSubscribers(data); // fire-and-forget, doesn't block the response
-  autoGenerateAIImageForNewProduct(data); // fire-and-forget, off by default — see AI_IMAGE_AUTO_GENERATE
+  notifyDealAlertSubscribers(data);
+  autoGenerateAIImageForNewProduct(data);
 
-  // Awaited (not fire-and-forget) — the screenshot capture step can take
-  // several seconds, and Vercel can kill background work after the
-  // response is sent if it isn't explicitly awaited. Awaiting also lets us
-  // return the per-platform results to the person instead of them having
-  // to go check three apps manually. `includeSocialLinks` defaults to true
-  // when not sent, so older callers keep working unchanged.
   const includeSocialLinks = body.includeSocialLinks !== false;
   const socialResults = await autoPostNewProduct(data, includeSocialLinks);
 
   return NextResponse.json({ product: data, socialResults });
+}

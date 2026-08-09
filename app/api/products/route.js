@@ -89,12 +89,13 @@ export async function POST(request) {
   notifyDealAlertSubscribers(data); // fire-and-forget, doesn't block the response
   autoGenerateAIImageForNewProduct(data); // fire-and-forget, off by default — see AI_IMAGE_AUTO_GENERATE
 
-  // Awaited (not fire-and-forget) — this now includes a screenshot capture
-  // step that can take several seconds, and Vercel can kill background
-  // work after the response is sent if it isn't explicitly awaited. A few
-  // extra seconds on Save is a fair trade for the post actually completing
-  // every time instead of silently dropping on slower runs.
-  await autoPostNewProduct(data);
+  // Awaited (not fire-and-forget) — the screenshot capture step can take
+  // several seconds, and Vercel can kill background work after the
+  // response is sent if it isn't explicitly awaited. Awaiting also lets us
+  // return the per-platform results to the person instead of them having
+  // to go check three apps manually. `includeSocialLinks` defaults to true
+  // when not sent, so older callers keep working unchanged.
+  const includeSocialLinks = body.includeSocialLinks !== false;
+  const socialResults = await autoPostNewProduct(data, includeSocialLinks);
 
-  return NextResponse.json({ product: data });
-}
+  return NextResponse.json({ product: data, socialResults });

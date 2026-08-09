@@ -132,9 +132,12 @@ const PLATFORM_COLORS = {
   whatsapp: "#25D366",
 };
 
+const PAGE_SIZE = 10;
+
 function PostGeneratorCard({ title, description, products, loading, platforms, preselectProductId }) {
   const canvasRef = useRef(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState([]);
   const [rendering, setRendering] = useState(false);
   const [caption, setCaption] = useState("");
@@ -150,9 +153,15 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
     if (match) setSelected([match.id]);
   }, [preselectProductId, products]);
 
-  const filteredProducts = search
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const allMatches = search
     ? products.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
-    : products.slice(0, 10);
+    : products;
+  const totalPages = Math.max(1, Math.ceil(allMatches.length / PAGE_SIZE));
+  const filteredProducts = allMatches.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   function toggleSelect(id) {
     setSelected((prev) => {
@@ -306,6 +315,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
         `${pickRandom(CAPTION_SIGNOFFS)}\n\n` +
         `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay`;
       setCaption(generatedCaption);
+      setSelected([]);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -381,34 +391,68 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
             ))}
           </div>
 
-          <p className="text-xs text-cream/60 mb-2">Select up to {MAX_SLOTS} products:</p>
+          <p className="text-xs text-cream/60 mb-2">
+            Select up to {MAX_SLOTS} products ({selected.length}/{MAX_SLOTS} selected):
+          </p>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search all ${products.length} products (or leave blank for 10 most recent)...`}
+            placeholder={`Search all ${products.length} products (or leave blank to browse recent)...`}
             className="w-full mb-2 bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30"
           />
           <div className="grid sm:grid-cols-2 gap-2">
             {filteredProducts.length === 0 && (
               <p className="text-cream/40 text-sm sm:col-span-2">No products match that search.</p>
             )}
-            {filteredProducts.map((p) => (
-              <label
-                key={p.id}
-                className="flex items-center gap-3 text-sm text-cream/80 bg-white/5 rounded px-3 py-2"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.includes(p.id)}
-                  onChange={() => toggleSelect(p.id)}
-                />
-                {p.image_url && (
-                  <img src={p.image_url} alt="" className="w-8 h-8 object-contain rounded shrink-0 bg-white" />
-                )}
-                <span className="truncate">{p.title}</span>
-              </label>
-            ))}
+            {filteredProducts.map((p) => {
+              const discount = discountPercent(p.price, p.list_price);
+              const priceText = formatAed(p.price) || "See price";
+              return (
+                <label
+                  key={p.id}
+                  className="flex items-center gap-3 text-sm text-cream/80 bg-white/5 rounded px-3 py-2"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(p.id)}
+                    onChange={() => toggleSelect(p.id)}
+                  />
+                  {p.image_url && (
+                    <img src={p.image_url} alt="" className="w-8 h-8 object-contain rounded shrink-0 bg-white" />
+                  )}
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate">{p.title}</span>
+                    <span className="block text-xs text-cream/50">
+                      {priceText}
+                      {discount && <span className="text-deal-green font-semibold"> · -{discount}%</span>}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center justify-between mt-3 text-xs text-cream/60">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="rounded-md border border-gold/20 px-3 py-1.5 disabled:opacity-40 hover:border-gold/50"
+            >
+              ← Prev
+            </button>
+            <span>
+              Page {page + 1} of {totalPages} ({allMatches.length} product{allMatches.length === 1 ? "" : "s"})
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="rounded-md border border-gold/20 px-3 py-1.5 disabled:opacity-40 hover:border-gold/50"
+            >
+              Next →
+            </button>
           </div>
 
           <label className="flex items-center gap-2 mt-4 text-sm text-cream/80 cursor-pointer w-fit">

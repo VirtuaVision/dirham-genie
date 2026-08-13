@@ -8,7 +8,7 @@ const FORMATS = {
   square: { width: 1080, height: 1080, label: "Square (Feed) — 1:1" },
   story: { width: 1080, height: 1920, label: "Story (IG/FB) — 9:16" },
 };
-const MAX_SLOTS = 4;
+const MAX_SLOTS = 2;
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -104,17 +104,16 @@ const CAPTION_HOOKS = [
   "✨ Today's lamp rub delivered some serious Amazon savings:",
 ];
 const CAPTION_CTAS = [
-  "Tap the link before the price changes back 👆",
-  "Don't sleep on this one 😴➡️💸",
-  "Link's in the post — go go go 🏃",
-  "Prices on Amazon.ae change fast, grab it now ⏱️",
-  "Your future self will thank you for this one 🙏",
-  "The genie only grants this wish once (or until the price moves) 🧞‍♂️",
+  "Worth a look if you've been eyeing one of these 👆",
+  "Sharing in case it's useful — link above 🙂",
+  "These caught our eye today, hope they help 💫",
+  "Price checked at time of posting — always worth a click to confirm 🔎",
+  "One of today's better finds, in our opinion 🙏",
 ];
 const CAPTION_SIGNOFFS = [
-  "That's the wish for today. See you tomorrow! 🪔",
-  "More wishes granted daily — stay tuned 🧞‍♂️",
-  "Follow for daily deals before everyone else finds them 👀",
+  "More picks tomorrow. See you then 🪔",
+  "We post curated finds daily — stay tuned 🧞‍♂️",
+  "Follow along for daily Amazon.ae picks 👀",
 ];
 
 function pickRandom(arr) {
@@ -310,13 +309,14 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
           `📸 Instagram: https://www.instagram.com/dirham_genie\n\n`
         : "";
       const generatedCaption =
+        `#ad | Affiliate links — as an Amazon Associate, Dirham Genie earns from qualifying purchases.\n\n` +
         `${pickRandom(CAPTION_HOOKS)}\n\n` +
         lines.join("\n\n") +
         `\n\n${pickRandom(CAPTION_CTAS)}\n\n` +
         `📍 Shop more: https://dirham-genie.vercel.app/\n` +
         socialLinksBlock +
         `${pickRandom(CAPTION_SIGNOFFS)}\n\n` +
-        `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay`;
+        `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay #Ad`;
       setCaption(generatedCaption);
       setSelected([]);
     } catch (err) {

@@ -86,8 +86,10 @@ function computeLayout(n, areaX, areaY, areaW, areaH, gap, stackVertical) {
     }
   } else {
     const cardW = (areaW - gap * (n - 1)) / n;
+    const cardH = Math.min(areaH, cardW * 1.15);
+    const rowY = areaY + (areaH - cardH) / 2;
     for (let i = 0; i < n; i++) {
-      positions.push([areaX + i * (cardW + gap), areaY, cardW, areaH]);
+      positions.push([areaX + i * (cardW + gap), rowY, cardW, cardH]);
     }
   }
   return positions;
@@ -232,15 +234,55 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
 
         const imgBox = isSpotlight ? Math.min(w * 0.7, h * 0.62) : Math.min(w * 0.85, h * 0.55);
         const imgTopPad = isSpotlight ? h * 0.06 : 20;
+        const secondImageUrl =
+          Array.isArray(p.additional_images) && p.additional_images.length > 0
+            ? p.additional_images.find((url) => url && url !== p.image_url)
+            : null;
+
         if (p.image_url) {
           try {
-            const img = await loadImage(`/api/proxy-image?url=${encodeURIComponent(p.image_url)}`);
-            const scale = Math.min(imgBox / img.width, imgBox / img.height) * (isSpotlight ? 0.95 : 0.9);
-            const iw = img.width * scale;
-            const ih = img.height * scale;
-            ctx.drawImage(img, x + (w - iw) / 2, y + imgTopPad + (imgBox - ih) / 2, iw, ih);
+            if (secondImageUrl) {
+              const gap = isSpotlight ? 16 : 10;
+              const [imgA, imgB] = await Promise.all([
+                loadImage(`/api/proxy-image?url=${encodeURIComponent(p.image_url)}`),
+                loadImage(`/api/proxy-image?url=${encodeURIComponent(secondImageUrl)}`).catch(() => null),
+              ]);
+
+              if (isSpotlight) {
+                // Single product selected: show the two photos side by side
+                const slotW = (imgBox - gap) / 2;
+                const rowX = x + (w - imgBox) / 2;
+                const drawSlot = (img, slotX) => {
+                  if (!img) return;
+                  const scale = Math.min(slotW / img.width, imgBox / img.height) * 0.92;
+                  const iw = img.width * scale;
+                  const ih = img.height * scale;
+                  ctx.drawImage(img, slotX + (slotW - iw) / 2, y + imgTopPad + (imgBox - ih) / 2, iw, ih);
+                };
+                drawSlot(imgA, rowX);
+                drawSlot(imgB, rowX + slotW + gap);
+              } else {
+                // Multiple products selected: stack each product's two photos top/bottom
+                const slotH = (imgBox - gap) / 2;
+                const drawSlot = (img, slotY) => {
+                  if (!img) return;
+                  const scale = Math.min((w * 0.8) / img.width, slotH / img.height) * 0.92;
+                  const iw = img.width * scale;
+                  const ih = img.height * scale;
+                  ctx.drawImage(img, x + (w - iw) / 2, slotY + (slotH - ih) / 2, iw, ih);
+                };
+                drawSlot(imgA, y + imgTopPad);
+                drawSlot(imgB, y + imgTopPad + slotH + gap);
+              }
+            } else {
+              const img = await loadImage(`/api/proxy-image?url=${encodeURIComponent(p.image_url)}`);
+              const scale = Math.min(imgBox / img.width, imgBox / img.height) * (isSpotlight ? 0.95 : 0.9);
+              const iw = img.width * scale;
+              const ih = img.height * scale;
+              ctx.drawImage(img, x + (w - iw) / 2, y + imgTopPad + (imgBox - ih) / 2, iw, ih);
+            }
           } catch {
-            // image failed to load; skip
+            // image(s) failed to load; skip
           }
         }
 
@@ -314,6 +356,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
         lines.join("\n\n") +
         `\n\n${pickRandom(CAPTION_CTAS)}\n\n` +
         `📍 Shop more: https://dirham-genie.vercel.app/\n` +
+        `💸 Extra discount codes: https://dirham-genie.vercel.app/coupons\n` +
         socialLinksBlock +
         `${pickRandom(CAPTION_SIGNOFFS)}\n\n` +
         `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay #Ad`;

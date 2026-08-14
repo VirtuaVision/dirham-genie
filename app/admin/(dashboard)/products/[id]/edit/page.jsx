@@ -82,6 +82,26 @@ export default function EditProductPage() {
         )}
 
         <div>
+          <label className="block text-xs text-cream/60 mb-1">
+            Additional Photos ({(form.additional_images || []).length} stored)
+          </label>
+          {form.additional_images && form.additional_images.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {form.additional_images.map((url, i) => (
+                <div key={i} className="relative w-16 h-16 bg-white/5 rounded border border-gold/20">
+                  <Image src={url} alt="" fill sizes="64px" className="object-contain p-1" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-cream/40">
+              None stored for this product — it was likely added before extra photos were
+              captured. Re-syncing via Amazon fetch may pull them in.
+            </p>
+          )}
+        </div>
+
+        <div>
           <label className="block text-xs text-cream/60 mb-1">Product Title *</label>
           <input
             required

@@ -128,6 +128,7 @@ export default function NewProductPage() {
         title: p.title,
         description: p.description,
         image_url: p.image_url,
+        additional_images: p.additional_images,
         price: p.price ?? "",
         list_price: p.list_price ?? "",
         asin: p.asin,
@@ -441,6 +442,25 @@ export default function NewProductPage() {
             <Image src={form.image_url} alt="" fill sizes="96px" className="object-contain p-2" />
           </div>
         )}
+
+        <div>
+          <label className="block text-xs text-cream/60 mb-1">
+            Additional Photos ({(form.additional_images || []).length} fetched)
+          </label>
+          {form.additional_images && form.additional_images.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {form.additional_images.map((url, i) => (
+                <div key={i} className="relative w-16 h-16 bg-white/5 rounded border border-gold/20">
+                  <Image src={url} alt="" fill sizes="64px" className="object-contain p-1" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-cream/40">
+              None fetched for this product (only a main photo was available).
+            </p>
+          )}
+        </div>
 
         <div>
           <label className="block text-xs text-cream/60 mb-1">Product Title *</label>

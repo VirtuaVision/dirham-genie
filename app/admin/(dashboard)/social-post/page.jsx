@@ -296,12 +296,13 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
         roundRect(ctx, x, y, w, h, 20);
         ctx.stroke();
 
-        const imgBox = isSpotlight ? Math.min(w * 0.85, h * 0.75) : Math.min(w * 0.85, h * 0.65);
-        const imgTopPad = isSpotlight ? h * 0.06 : 20;
+        const imgTopPad = isSpotlight ? h * 0.045 : 20;
         const secondImageUrl =
           Array.isArray(p.additional_images) && p.additional_images.length > 0
             ? p.additional_images.find((url) => url && url !== p.image_url)
             : null;
+
+        let photoAreaHeight = 0;
 
         if (p.image_url) {
           try {
@@ -312,24 +313,26 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
             };
 
             if (secondImageUrl) {
-              const gap = isSpotlight ? 16 : 10;
+              const gap = isSpotlight ? 12 : 10;
               const [entryA, entryB] = await Promise.all([
                 loadCropped(p.image_url),
                 loadCropped(secondImageUrl).catch(() => null),
               ]);
 
               if (isSpotlight) {
-                // Single product selected: show the two photos side by side,
-                // each in a roughly-square slot (most product photos are
-                // square/landscape, so a tall narrow slot leaves dead space).
-                const slotW = (imgBox - gap) / 2;
-                const slotH = Math.min(imgBox, slotW * 1.05);
-                const rowX = x + (w - imgBox) / 2;
-                const rowY = y + imgTopPad + (imgBox - slotH) / 2;
+                // Single product selected: show the two photos side by side.
+                // Sized to closely match a full-bleed reference look — photos
+                // take up nearly the full card width and most of its height.
+                const rowW = w * 0.95;
+                const rowX = x + (w - rowW) / 2;
+                const slotW = (rowW - gap) / 2;
+                const maxSlotH = h * 0.68;
+                const slotH = Math.min(maxSlotH, slotW * 1.3);
+                const rowY = y + imgTopPad;
                 const drawSlot = (entry, slotX) => {
                   if (!entry) return;
                   const { img, crop } = entry;
-                  const scale = Math.min(slotW / crop.sw, slotH / crop.sh) * 0.98;
+                  const scale = Math.min(slotW / crop.sw, slotH / crop.sh) * 0.99;
                   const iw = crop.sw * scale;
                   const ih = crop.sh * scale;
                   ctx.drawImage(
@@ -339,8 +342,10 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
                 };
                 drawSlot(entryA, rowX);
                 drawSlot(entryB, rowX + slotW + gap);
+                photoAreaHeight = slotH;
               } else {
                 // Multiple products selected: stack each product's two photos top/bottom
+                const imgBox = Math.min(w * 0.85, h * 0.65);
                 const slotH = (imgBox - gap) / 2;
                 const drawSlot = (entry, slotY) => {
                   if (!entry) return;
@@ -355,8 +360,10 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
                 };
                 drawSlot(entryA, y + imgTopPad);
                 drawSlot(entryB, y + imgTopPad + slotH + gap);
+                photoAreaHeight = imgBox;
               }
             } else {
+              const imgBox = isSpotlight ? Math.min(w * 0.85, h * 0.75) : Math.min(w * 0.85, h * 0.65);
               const { img, crop } = await loadCropped(p.image_url);
               const scale = Math.min(imgBox / crop.sw, imgBox / crop.sh) * (isSpotlight ? 0.97 : 0.95);
               const iw = crop.sw * scale;
@@ -365,6 +372,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
                 img, crop.sx, crop.sy, crop.sw, crop.sh,
                 x + (w - iw) / 2, y + imgTopPad + (imgBox - ih) / 2, iw, ih
               );
+              photoAreaHeight = imgBox;
             }
           } catch {
             // image(s) failed to load; skip
@@ -387,7 +395,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
         ctx.fillStyle = "#2B221C";
         const titleFontSize = isSpotlight ? 28 : Math.max(16, Math.min(22, w / 16));
         ctx.font = `${titleFontSize}px Arial`;
-        const titleY = y + imgTopPad + imgBox + (isSpotlight ? 20 : 14);
+        const titleY = y + imgTopPad + photoAreaHeight + (isSpotlight ? 20 : 14);
         const titleLineHeight = isSpotlight ? 34 : 26;
         const titleHeight = wrapText(ctx, p.title, x + 20, titleY, w - 40, titleLineHeight, 1);
 
@@ -939,5 +947,4 @@ export default function SocialPostPage() {
       <SocialPostPageInner />
     </Suspense>
   );
-
 }

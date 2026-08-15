@@ -948,5 +948,6 @@ export default function SocialPostPage() {
     <Suspense fallback={<p className="text-cream/50 text-sm">Loading...</p>}>
       <SocialPostPageInner />
     </Suspense>
+
   );
 }

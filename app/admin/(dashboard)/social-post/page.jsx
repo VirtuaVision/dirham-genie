@@ -249,15 +249,19 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
               ]);
 
               if (isSpotlight) {
-                // Single product selected: show the two photos side by side
+                // Single product selected: show the two photos side by side,
+                // each in a roughly-square slot (most product photos are
+                // square/landscape, so a tall narrow slot leaves dead space).
                 const slotW = (imgBox - gap) / 2;
+                const slotH = Math.min(imgBox, slotW * 1.05);
                 const rowX = x + (w - imgBox) / 2;
+                const rowY = y + imgTopPad + (imgBox - slotH) / 2;
                 const drawSlot = (img, slotX) => {
                   if (!img) return;
-                  const scale = Math.min(slotW / img.width, imgBox / img.height) * 0.97;
+                  const scale = Math.min(slotW / img.width, slotH / img.height) * 0.98;
                   const iw = img.width * scale;
                   const ih = img.height * scale;
-                  ctx.drawImage(img, slotX + (slotW - iw) / 2, y + imgTopPad + (imgBox - ih) / 2, iw, ih);
+                  ctx.drawImage(img, slotX + (slotW - iw) / 2, rowY + (slotH - ih) / 2, iw, ih);
                 };
                 drawSlot(imgA, rowX);
                 drawSlot(imgB, rowX + slotW + gap);

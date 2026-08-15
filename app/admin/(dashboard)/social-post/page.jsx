@@ -19,6 +19,70 @@ function loadImage(src) {
   });
 }
 
+// Amazon product photos (especially secondary/lifestyle shots) often have a
+// lot of built-in white padding around the actual product. This scans the
+// image's edges and returns a source-rectangle {sx, sy, sw, sh} that trims
+// that blank border, so the product fills the frame instead of looking
+// small inside empty space. Falls back to the full image if anything goes
+// wrong (e.g. a tainted canvas).
+function cropWhitespace(img, tolerance = 14) {
+  const fallback = { sx: 0, sy: 0, sw: img.width, sh: img.height };
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const w = canvas.width, h = canvas.height;
+
+    const isBg = (i) => {
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      if (a < 10) return true;
+      return r > 255 - tolerance && g > 255 - tolerance && b > 255 - tolerance;
+    };
+
+    let top = 0, bottom = h - 1, left = 0, right = w - 1;
+
+    topLoop: for (; top < h; top++) {
+      for (let x = 0; x < w; x++) {
+        if (!isBg((top * w + x) * 4)) break topLoop;
+      }
+    }
+    bottomLoop: for (; bottom > top; bottom--) {
+      for (let x = 0; x < w; x++) {
+        if (!isBg((bottom * w + x) * 4)) break bottomLoop;
+      }
+    }
+    leftLoop: for (; left < w; left++) {
+      for (let y = top; y <= bottom; y++) {
+        if (!isBg((y * w + left) * 4)) break leftLoop;
+      }
+    }
+    rightLoop: for (; right > left; right--) {
+      for (let y = top; y <= bottom; y++) {
+        if (!isBg((y * w + right) * 4)) break rightLoop;
+      }
+    }
+
+    const trimmedW = right - left + 1;
+    const trimmedH = bottom - top + 1;
+    if (trimmedW <= 0 || trimmedH <= 0) return fallback;
+
+    // Add a little breathing room back so the product doesn't touch the edge
+    const padX = trimmedW * 0.06;
+    const padY = trimmedH * 0.06;
+    const sx = Math.max(0, left - padX);
+    const sy = Math.max(0, top - padY);
+    const sw = Math.min(w - sx, trimmedW + padX * 2);
+    const sh = Math.min(h - sy, trimmedH + padY * 2);
+
+    return { sx, sy, sw, sh };
+  } catch {
+    return fallback;
+  }
+}
+
 function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
   const words = text.split(" ");
   let line = "";
@@ -241,11 +305,17 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
 
         if (p.image_url) {
           try {
+            const loadCropped = async (url) => {
+              const img = await loadImage(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+              const crop = cropWhitespace(img);
+              return { img, crop };
+            };
+
             if (secondImageUrl) {
               const gap = isSpotlight ? 16 : 10;
-              const [imgA, imgB] = await Promise.all([
-                loadImage(`/api/proxy-image?url=${encodeURIComponent(p.image_url)}`),
-                loadImage(`/api/proxy-image?url=${encodeURIComponent(secondImageUrl)}`).catch(() => null),
+              const [entryA, entryB] = await Promise.all([
+                loadCropped(p.image_url),
+                loadCropped(secondImageUrl).catch(() => null),
               ]);
 
               if (isSpotlight) {
@@ -256,34 +326,45 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
                 const slotH = Math.min(imgBox, slotW * 1.05);
                 const rowX = x + (w - imgBox) / 2;
                 const rowY = y + imgTopPad + (imgBox - slotH) / 2;
-                const drawSlot = (img, slotX) => {
-                  if (!img) return;
-                  const scale = Math.min(slotW / img.width, slotH / img.height) * 0.98;
-                  const iw = img.width * scale;
-                  const ih = img.height * scale;
-                  ctx.drawImage(img, slotX + (slotW - iw) / 2, rowY + (slotH - ih) / 2, iw, ih);
+                const drawSlot = (entry, slotX) => {
+                  if (!entry) return;
+                  const { img, crop } = entry;
+                  const scale = Math.min(slotW / crop.sw, slotH / crop.sh) * 0.98;
+                  const iw = crop.sw * scale;
+                  const ih = crop.sh * scale;
+                  ctx.drawImage(
+                    img, crop.sx, crop.sy, crop.sw, crop.sh,
+                    slotX + (slotW - iw) / 2, rowY + (slotH - ih) / 2, iw, ih
+                  );
                 };
-                drawSlot(imgA, rowX);
-                drawSlot(imgB, rowX + slotW + gap);
+                drawSlot(entryA, rowX);
+                drawSlot(entryB, rowX + slotW + gap);
               } else {
                 // Multiple products selected: stack each product's two photos top/bottom
                 const slotH = (imgBox - gap) / 2;
-                const drawSlot = (img, slotY) => {
-                  if (!img) return;
-                  const scale = Math.min((w * 0.88) / img.width, slotH / img.height) * 0.97;
-                  const iw = img.width * scale;
-                  const ih = img.height * scale;
-                  ctx.drawImage(img, x + (w - iw) / 2, slotY + (slotH - ih) / 2, iw, ih);
+                const drawSlot = (entry, slotY) => {
+                  if (!entry) return;
+                  const { img, crop } = entry;
+                  const scale = Math.min((w * 0.88) / crop.sw, slotH / crop.sh) * 0.97;
+                  const iw = crop.sw * scale;
+                  const ih = crop.sh * scale;
+                  ctx.drawImage(
+                    img, crop.sx, crop.sy, crop.sw, crop.sh,
+                    x + (w - iw) / 2, slotY + (slotH - ih) / 2, iw, ih
+                  );
                 };
-                drawSlot(imgA, y + imgTopPad);
-                drawSlot(imgB, y + imgTopPad + slotH + gap);
+                drawSlot(entryA, y + imgTopPad);
+                drawSlot(entryB, y + imgTopPad + slotH + gap);
               }
             } else {
-              const img = await loadImage(`/api/proxy-image?url=${encodeURIComponent(p.image_url)}`);
-              const scale = Math.min(imgBox / img.width, imgBox / img.height) * (isSpotlight ? 0.97 : 0.95);
-              const iw = img.width * scale;
-              const ih = img.height * scale;
-              ctx.drawImage(img, x + (w - iw) / 2, y + imgTopPad + (imgBox - ih) / 2, iw, ih);
+              const { img, crop } = await loadCropped(p.image_url);
+              const scale = Math.min(imgBox / crop.sw, imgBox / crop.sh) * (isSpotlight ? 0.97 : 0.95);
+              const iw = crop.sw * scale;
+              const ih = crop.sh * scale;
+              ctx.drawImage(
+                img, crop.sx, crop.sy, crop.sw, crop.sh,
+                x + (w - iw) / 2, y + imgTopPad + (imgBox - ih) / 2, iw, ih
+              );
             }
           } catch {
             // image(s) failed to load; skip

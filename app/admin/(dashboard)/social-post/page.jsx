@@ -522,4 +522,336 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
               Page {page + 1} of {totalPages} ({allMatches.length} product{allMatches.length === 1 ? "" : "s"})
             </span>
             <button
- 
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="rounded-md border border-gold/20 px-3 py-1.5 disabled:opacity-40 hover:border-gold/50"
+            >
+              Next →
+            </button>
+          </div>
+
+          <label className="flex items-center gap-2 mt-4 text-sm text-cream/80 cursor-pointer w-fit">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={includeSocialLinks}
+              onClick={() => setIncludeSocialLinks((v) => !v)}
+              className={`relative w-10 h-6 rounded-full transition-colors ${
+                includeSocialLinks ? "bg-gold" : "bg-white/20"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                  includeSocialLinks ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+            Include WhatsApp/Facebook/Instagram links in caption
+          </label>
+
+          <button
+            onClick={generate}
+            disabled={rendering}
+            className="mt-4 rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2.5 text-sm disabled:opacity-60"
+          >
+            {rendering ? "Generating..." : "Generate Post"}
+          </button>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <div>
+          <p className="text-xs text-cream/60 mb-2">Image preview:</p>
+          <canvas
+            ref={canvasRef}
+            className="w-full max-w-md rounded-lg border border-gold/20"
+          />
+          {caption && (
+            <button
+              onClick={downloadImage}
+              className="mt-3 rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-4 py-2 text-sm"
+            >
+              Download Image
+            </button>
+          )}
+        </div>
+
+        {caption && (
+          <div>
+            <p className="text-xs text-cream/60 mb-2">Caption (edit before posting if you like):</p>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              rows={14}
+              className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+            />
+            <div className="flex flex-wrap gap-3 mt-3">
+              <button
+                onClick={copyCaption}
+                className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-4 py-2 text-sm"
+              >
+                Copy Caption
+              </button>
+
+              {platforms.map((platform) => (
+                <button
+                  key={platform}
+                  onClick={() => publishToSocial([platform])}
+                  disabled={publishingPlatform !== null}
+                  className="rounded-md text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
+                  style={{ backgroundColor: PLATFORM_COLORS[platform] }}
+                >
+                  {publishingPlatform === platform ? "Posting..." : `📤 Post to ${PLATFORM_LABELS[platform]}`}
+                </button>
+              ))}
+
+              {showAllButton && (
+                <button
+                  onClick={() => publishToSocial(platforms)}
+                  disabled={publishingPlatform !== null}
+                  className="rounded-md text-white font-semibold px-4 py-2 text-sm disabled:opacity-60"
+                  style={{ backgroundColor: "#3B5BDB" }}
+                >
+                  {publishingPlatform === "all" ? "Posting..." : "📤 Post to All"}
+                </button>
+              )}
+            </div>
+
+            {format === "story" && platforms.includes("facebook") && (
+              <p className="text-xs text-cream/50 mt-2">
+                Posts as a Story to Facebook &amp; Instagram (no caption support on Stories via
+                the API — your caption above is for the copy button only). WhatsApp Channel still
+                gets a normal post with the full caption attached.
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-gold/10">
+              <input
+                type="datetime-local"
+                value={scheduledFor}
+                onChange={(e) => setScheduledFor(e.target.value)}
+                className="rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+              />
+              <button
+                onClick={queuePost}
+                disabled={queueing}
+                className="rounded-md border border-gold text-gold hover:bg-gold/10 font-semibold px-4 py-2 text-sm disabled:opacity-60"
+              >
+                {queueing ? "Queuing..." : "🕒 Queue for Later"}
+              </button>
+            </div>
+            {queueMessage && (
+              <p className={`text-sm mt-2 ${queueMessage.ok ? "text-green-700" : "text-red-700"} font-medium`}>
+                {queueMessage.text}
+              </p>
+            )}
+
+            {publishResult && (
+              <div className="mt-4 space-y-2 text-sm bg-white/90 rounded-md p-3 border border-gold/20">
+                {["whatsapp", "facebook", "instagram"].map((platform) => {
+                  const r = publishResult[platform];
+                  if (!r) return null;
+                  return (
+                    <p
+                      key={platform}
+                      className={
+                        r.ok
+                          ? "text-green-700 font-semibold"
+                          : r.skipped
+                          ? "text-gray-600"
+                          : "text-red-700 font-semibold"
+                      }
+                    >
+                      {PLATFORM_LABELS[platform]}:{" "}
+                      {r.ok
+                        ? "Posted successfully! ✅"
+                        : r.skipped
+                        ? r.reason
+                        : `Failed — ${r.error}`}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function QueueList() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [processMessage, setProcessMessage] = useState(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/social/queue");
+      const json = await res.json();
+      setPosts(json.posts || []);
+    } catch {
+      // leave posts as-is on failure; refresh button lets them retry
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function cancel(id) {
+    setCancellingId(id);
+    try {
+      await fetch(`/api/social/queue/${id}`, { method: "DELETE" });
+      await load();
+    } finally {
+      setCancellingId(null);
+    }
+  }
+
+  async function processDueNow() {
+    setProcessing(true);
+    setProcessMessage(null);
+    try {
+      const res = await fetch("/api/social/queue/process", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setProcessMessage(
+        json.processed === 0
+          ? "Nothing was due yet."
+          : `Posted ${json.processed} due item${json.processed === 1 ? "" : "s"}.`
+      );
+      await load();
+    } catch (err) {
+      setProcessMessage(`Failed: ${err.message}`);
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  const STATUS_STYLE = {
+    pending: "text-gold",
+    posted: "text-green-700",
+    failed: "text-red-700",
+  };
+
+  return (
+    <div className="card-surface rounded-lg p-4 mb-8">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="font-display text-lg text-gold">Scheduled Queue</h2>
+        <button onClick={load} className="text-xs text-cream/60 hover:text-gold underline">
+          Refresh
+        </button>
+      </div>
+      <p className="text-cream/50 text-xs mb-3">
+        Posts queued from either generator above. This runs on the free plan, so nothing posts
+        completely on its own — tap the button below whenever you check in and it'll post
+        anything that's become due since your scheduled time. There's also a daily automatic
+        catch-up run as a safety net.
+      </p>
+
+      <button
+        onClick={processDueNow}
+        disabled={processing}
+        className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-4 py-2 text-sm disabled:opacity-60 mb-2"
+      >
+        {processing ? "Checking..." : "▶️ Process Due Posts Now"}
+      </button>
+      {processMessage && <p className="text-sm text-cream/70 mb-3">{processMessage}</p>}
+
+      {loading ? (
+        <p className="text-cream/50 text-sm">Loading queue...</p>
+      ) : posts.length === 0 ? (
+        <p className="text-cream/40 text-sm">Nothing queued right now.</p>
+      ) : (
+        <div className="space-y-2">
+          {posts.map((post) => (
+            <div key={post.id} className="flex items-center gap-3 bg-white/5 rounded px-3 py-2 text-sm">
+              <img src={post.image_url} alt="" className="w-10 h-10 object-cover rounded shrink-0 bg-white" />
+              <div className="flex-1 min-w-0">
+                <p className="text-cream/80 truncate">{post.caption.split("\n")[0]}</p>
+                <p className="text-xs text-cream/50">
+                  {post.platforms.join(", ")} · {new Date(post.scheduled_for).toLocaleString()}
+                </p>
+              </div>
+              <span className={`text-xs font-semibold shrink-0 ${STATUS_STYLE[post.status] || ""}`}>
+                {post.status}
+              </span>
+              {post.status === "pending" && (
+                <button
+                  onClick={() => cancel(post.id)}
+                  disabled={cancellingId === post.id}
+                  className="text-xs text-red-400 hover:text-red-300 shrink-0 disabled:opacity-50"
+                >
+                  {cancellingId === post.id ? "..." : "Cancel"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SocialPostPageInner() {
+  const searchParams = useSearchParams();
+  const preselectProductId = searchParams.get("product");
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((r) => r.json())
+      .then((json) => {
+        const active = (json.products || []).filter((p) => p.is_active);
+        setProducts(active);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div>
+      <h1 className="font-display text-2xl text-gold mb-2">Social Post Generator</h1>
+      <p className="text-cream/50 text-sm mb-6">
+        Pick up to {MAX_SLOTS} products (search to find older ones), choose a format, and
+        generate a ready-to-share image plus a caption with all the affiliate links included.
+      </p>
+
+      <PostGeneratorCard
+        title="All Platforms"
+        description="Generate once, then post to Facebook, Instagram, and WhatsApp — individually or all at once."
+        products={products}
+        loading={loading}
+        platforms={["facebook", "instagram", "whatsapp"]}
+        preselectProductId={preselectProductId}
+      />
+
+      <PostGeneratorCard
+        title="Instagram Only"
+        description="A separate generator just for Instagram — pick products, tweak the caption, and post there alone without touching Facebook or WhatsApp."
+        products={products}
+        loading={loading}
+        platforms={["instagram"]}
+        preselectProductId={null}
+      />
+
+      <QueueList />
+    </div>
+  );
+}
+
+export default function SocialPostPage() {
+  return (
+    <Suspense fallback={<p className="text-cream/50 text-sm">Loading...</p>}>
+      <SocialPostPageInner />
+    </Suspense>
+  );
+}

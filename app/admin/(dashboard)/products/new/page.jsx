@@ -82,6 +82,7 @@ export default function NewProductPage() {
   const [savedSocialResults, setSavedSocialResults] = useState(null);
 
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [minDiscount, setMinDiscount] = useState(0);
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [searchError, setSearchError] = useState(null);
@@ -182,7 +183,7 @@ export default function NewProductPage() {
       const res = await fetch("/api/amazon/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: searchKeyword }),
+        body: JSON.stringify({ keyword: searchKeyword, minDiscount }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -345,6 +346,16 @@ export default function NewProductPage() {
                 placeholder="e.g. hyaluronic acid shampoo"
                 className="flex-1 rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
               />
+              <select
+                value={minDiscount}
+                onChange={(e) => setMinDiscount(Number(e.target.value))}
+                className="rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+              >
+                <option value={0}>Any discount</option>
+                <option value={0.3}>30%+ off</option>
+                <option value={0.5}>50%+ off</option>
+                <option value={0.7}>70%+ off</option>
+              </select>
               <button
                 type="submit"
                 disabled={searching}

@@ -11,6 +11,8 @@ export default function AdminProductsPage() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [selected, setSelected] = useState(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -52,6 +54,57 @@ export default function AdminProductsPage() {
       (sourceFilter === "amazon_api" ? p.source === "amazon_api" : p.source !== "amazon_api");
     return matchesSearch && matchesSource;
   });
+
+  const allFilteredSelected =
+    filteredProducts.length > 0 && filteredProducts.every((p) => selected.has(p.id));
+
+  function toggleOne(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllFiltered() {
+    setSelected((prev) => {
+      if (allFilteredSelected) {
+        const next = new Set(prev);
+        filteredProducts.forEach((p) => next.delete(p.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filteredProducts.forEach((p) => next.add(p.id));
+      return next;
+    });
+  }
+
+  async function deleteSelected() {
+    if (selected.size === 0) return;
+    if (
+      !confirm(
+        `Delete ${selected.size} selected product${selected.size === 1 ? "" : "s"}? This cannot be undone.`
+      )
+    )
+      return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch("/api/products/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selected) }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSelected(new Set());
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBulkDeleting(false);
+    }
+  }
 
   return (
     <div>
@@ -107,6 +160,38 @@ export default function AdminProductsPage() {
         </div>
       )}
 
+      {!loading && filteredProducts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 mb-4 bg-white/5 rounded-lg px-3 py-2">
+          <label className="flex items-center gap-2 text-sm text-cream/80 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allFilteredSelected}
+              onChange={toggleSelectAllFiltered}
+            />
+            Select all ({filteredProducts.length} shown)
+          </label>
+
+          {selected.size > 0 && (
+            <>
+              <span className="text-xs text-cream/50">{selected.size} selected</span>
+              <button
+                onClick={deleteSelected}
+                disabled={bulkDeleting}
+                className="ml-auto rounded-md bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-4 py-2 disabled:opacity-60"
+              >
+                {bulkDeleting ? "Deleting..." : `Delete Selected (${selected.size})`}
+              </button>
+              <button
+                onClick={() => setSelected(new Set())}
+                className="text-xs text-cream/50 hover:text-cream/80 underline"
+              >
+                Clear selection
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
         {!loading && products.length > 0 && filteredProducts.length === 0 && (
           <p className="text-cream/50 text-sm">No products match that search/filter.</p>
@@ -116,6 +201,13 @@ export default function AdminProductsPage() {
             key={p.id}
             className="card-surface rounded-lg p-3 flex flex-col sm:flex-row sm:items-center gap-3"
           >
+            <input
+              type="checkbox"
+              checked={selected.has(p.id)}
+              onChange={() => toggleOne(p.id)}
+              className="shrink-0"
+            />
+
             <div className="relative w-14 h-14 shrink-0 bg-white/5 rounded">
               {p.image_url && (
                 <Image src={p.image_url} alt={p.title} fill sizes="56px" className="object-contain p-1" />

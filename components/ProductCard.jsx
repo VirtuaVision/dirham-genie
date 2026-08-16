@@ -6,6 +6,7 @@ import { formatAed, discountPercent } from "@/lib/formatCurrency";
 import { timeAgo } from "@/lib/timeAgo";
 import CountdownTimer from "@/components/CountdownTimer";
 import StarRating from "@/components/StarRating";
+import { useIsAdmin } from "@/components/AdminStatusProvider";
 
 // Amazon image URLs carry their resolution in the filename itself
 // (e.g. "._SL500_.jpg"). Bumping that number gets a noticeably sharper
@@ -19,6 +20,7 @@ export default function ProductCard({ product }) {
   const discount = discountPercent(product.price, product.list_price);
   const checked = timeAgo(product.last_synced_at || product.updated_at);
   const hiResImage = upscaleAmazonImage(product.image_url);
+  const isAdmin = useIsAdmin();
 
   function handleAmazonClick(e) {
     e.stopPropagation();
@@ -28,6 +30,26 @@ export default function ProductCard({ product }) {
       body: JSON.stringify({ productId: product.id }),
       keepalive: true,
     }).catch(() => {});
+  }
+
+  async function handleShare(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareData = {
+      title: product.title,
+      text: `${product.title} — ${formatAed(product.price) || "See price"} on Dirham Genie`,
+      url: `https://dirham-genie.vercel.app/product/${product.slug}`,
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // user cancelled the share sheet; nothing to do
+      }
+    } else {
+      navigator.clipboard.writeText(shareData.url);
+      alert("Link copied — your browser doesn't support the native share sheet.");
+    }
   }
 
   return (
@@ -134,6 +156,14 @@ export default function ProductCard({ product }) {
         >
           See Product Details
         </Link>
+        {isAdmin && (
+          <button
+            onClick={handleShare}
+            className="block w-full text-center rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold text-xs py-2 transition-colors"
+          >
+            📤 Share to Social
+          </button>
+        )}
       </div>
     </div>
   );

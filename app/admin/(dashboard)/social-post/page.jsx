@@ -344,15 +344,33 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
                 drawSlot(entryB, rowX + slotW + gap);
                 photoAreaHeight = slotH;
               } else {
-                // Multiple products selected: main photo bigger on top,
-                // secondary photo smaller below it (roughly 60/40 split)
-                const imgBox = Math.min(w * 0.95, h * 0.68);
-                const topH = imgBox * 0.6;
-                const bottomH = imgBox - gap - topH;
+                // Multiple products selected: size each photo to fill the
+                // card's width first, then use whatever height that needs —
+                // this lets tall/portrait lifestyle photos use much more of
+                // a tall card instead of being squeezed into a fixed split.
+                const widthCap = w * 0.95;
+                const reservedForText = 110; // title + price space below photos
+                const availH = h - imgTopPad - reservedForText;
+
+                const naturalTopH = entryA ? (widthCap / entryA.crop.sw) * entryA.crop.sh : 0;
+                const naturalBottomH = entryB ? (widthCap / entryB.crop.sw) * entryB.crop.sh : 0;
+                const totalNatural = naturalTopH + naturalBottomH;
+
+                let topH = naturalTopH;
+                let bottomH = naturalBottomH;
+                if (totalNatural + gap > availH && totalNatural > 0) {
+                  const shrink = (availH - gap) / totalNatural;
+                  topH = naturalTopH * shrink;
+                  bottomH = naturalBottomH * shrink;
+                }
+
+                const usedH = topH + (entryB ? gap + bottomH : 0);
+                const blockY = y + imgTopPad + Math.max(0, (availH - usedH) / 2);
+
                 const drawSlot = (entry, slotY, slotH) => {
                   if (!entry) return;
                   const { img, crop } = entry;
-                  const scale = Math.min((w * 0.94) / crop.sw, slotH / crop.sh) * 0.98;
+                  const scale = slotH / crop.sh;
                   const iw = crop.sw * scale;
                   const ih = crop.sh * scale;
                   ctx.drawImage(
@@ -360,9 +378,9 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
                     x + (w - iw) / 2, slotY + (slotH - ih) / 2, iw, ih
                   );
                 };
-                drawSlot(entryA, y + imgTopPad, topH);
-                drawSlot(entryB, y + imgTopPad + topH + gap, bottomH);
-                photoAreaHeight = imgBox;
+                drawSlot(entryA, blockY, topH);
+                drawSlot(entryB, blockY + topH + gap, bottomH);
+                photoAreaHeight = (blockY - y - imgTopPad) + usedH;
               }
             } else {
               const imgBox = isSpotlight ? Math.min(w * 0.85, h * 0.75) : Math.min(w * 0.85, h * 0.65);
@@ -948,6 +966,5 @@ export default function SocialPostPage() {
     <Suspense fallback={<p className="text-cream/50 text-sm">Loading...</p>}>
       <SocialPostPageInner />
     </Suspense>
-
   );
 }

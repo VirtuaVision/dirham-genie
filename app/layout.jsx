@@ -9,6 +9,7 @@ import CookieConsent from "@/components/CookieConsent";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import ConditionalChrome from "@/components/ConditionalChrome";
+import { AdminStatusProvider } from "@/components/AdminStatusProvider";
 import { getLocale } from "@/lib/i18n";
 
 const display = Cinzel({

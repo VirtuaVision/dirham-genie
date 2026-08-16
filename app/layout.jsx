@@ -121,8 +121,6 @@ export default function RootLayout({ children }) {
             <Footer />
           </ConditionalChrome>
         </AdminStatusProvider>
-          <Footer />
-        </ConditionalChrome>
         <CookieConsent />
       </body>
     </html>

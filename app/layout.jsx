@@ -111,12 +111,16 @@ export default function RootLayout({ children }) {
         <GoogleAnalytics />
         <ServiceWorkerRegister />
         <InstallPrompt />
-        <ConditionalChrome>
-          <Header />
-          <SocialIconsBar />
-        </ConditionalChrome>
-        <main className="flex-1">{children}</main>
-        <ConditionalChrome>
+        <AdminStatusProvider>
+          <ConditionalChrome>
+            <Header />
+            <SocialIconsBar />
+          </ConditionalChrome>
+          <main className="flex-1">{children}</main>
+          <ConditionalChrome>
+            <Footer />
+          </ConditionalChrome>
+        </AdminStatusProvider>
           <Footer />
         </ConditionalChrome>
         <CookieConsent />

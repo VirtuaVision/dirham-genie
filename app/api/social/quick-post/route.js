@@ -25,6 +25,6 @@ export async function POST(request) {
     return NextResponse.json({ error: "Product not found." }, { status: 404 });
   }
 
-  const results = await autoPostNewProduct(product, true);
+  const results = await autoPostNewProduct(product, false);
   return NextResponse.json({ results });
 }

@@ -48,19 +48,20 @@ export default function ProductCard({ product }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+      
       const { results } = json;
       const posted = [];
-      const failed = [];
+      const failedDetails = [];
       for (const [platform, r] of Object.entries(results || {})) {
         if (r.ok) posted.push(platform);
-        else if (!r.skipped) failed.push(platform);
+        else if (!r.skipped) failedDetails.push(`${platform} (${r.error || "unknown error"})`);
       }
       if (posted.length === 0) {
         setPostResult({ ok: false, text: "Nothing posted — check platform setup in admin." });
-      } else if (failed.length === 0) {
+      } else if (failedDetails.length === 0) {
         setPostResult({ ok: true, text: `Posted to ${posted.join(", ")} ✅` });
       } else {
-        setPostResult({ ok: true, text: `Posted to ${posted.join(", ")}. Failed: ${failed.join(", ")}` });
+        setPostResult({ ok: true, text: `Posted to ${posted.join(", ")}. Failed: ${failedDetails.join("; ")}` });
       }
     } catch (err) {
       setPostResult({ ok: false, text: err.message });

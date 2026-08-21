@@ -20,8 +20,8 @@ const links = [
 { href: "/admin/ai-image-studio", label: "AI Image Studio" },
   { href: "/admin/sync-logs", label: "Sync Logs" },
   { href: "/admin/search-insights", label: "Search Insights" },
-  { href: "/admin/team", label: "Team Access" },
-  { href: "/admin/settings", label: "Site Settings" },
+  { href: "/admin/team", label: "Team Access", adminOnly: true },
+  { href: "/admin/settings", label: "Site Settings", adminOnly: true },
 ];
 
 export default function AdminSidebar() {
@@ -29,6 +29,16 @@ export default function AdminSidebar() {
   const router = useRouter();
   const [logoUrl, setLogoUrl] = useState("/logo-dirham-genie.png");
   const [adminLogo, setAdminLogo] = useState({ light: "", dark: "" });
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/admin/status")
+      .then((r) => r.json())
+      .then((json) => setRole(json.role))
+      .catch(() => setRole(null));
+  }, []);
+
+  const visibleLinks = links.filter((link) => !link.adminOnly || role === "admin");
 
   useEffect(() => {
     supabase
@@ -78,7 +88,7 @@ export default function AdminSidebar() {
         </div>
       </div>
       <nav className="flex md:flex-col gap-2 flex-wrap">
-        {links.map((link) => {
+        {visibleLinks.map((link) => {
           const active = pathname === link.href;
           return (
             <Link

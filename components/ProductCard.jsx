@@ -24,6 +24,17 @@ export default function ProductCard({ product }) {
   const isAdmin = useIsAdmin();
   const [posting, setPosting] = useState(false);
   const [postResult, setPostResult] = useState(null);
+  const [copiedCoupon, setCopiedCoupon] = useState(false);
+
+  function handleLampClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!product.coupon_code) return;
+    navigator.clipboard.writeText(product.coupon_code).then(() => {
+      setCopiedCoupon(true);
+      setTimeout(() => setCopiedCoupon(false), 2000);
+    });
+  }
 
   function handleAmazonClick(e) {
     e.stopPropagation();
@@ -48,7 +59,6 @@ export default function ProductCard({ product }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
-      
       const { results } = json;
       const posted = [];
       const failedDetails = [];
@@ -135,13 +145,33 @@ export default function ProductCard({ product }) {
               </span>
             )}
           </div>
-          <div className="shrink-0 bg-gold/20 border border-gold/40 rounded-full p-1.5">
-            <img
-              src="/lamp-icon-gold-1.png"
-              alt=""
-              className="w-7 h-auto"
-              style={{ filter: "brightness(0.5) contrast(1.4)" }}
-            />
+          <div className="relative shrink-0">
+            <button
+              onClick={handleLampClick}
+              disabled={!product.coupon_code}
+              aria-label={product.coupon_code ? "Copy coupon code" : "No coupon for this product"}
+              title={product.coupon_code ? "Tap to copy coupon code" : ""}
+              className={`bg-gold/20 border rounded-full p-1.5 transition-all ${
+                product.coupon_code
+                  ? "border-gold/60 hover:bg-gold/30 hover:scale-110 active:scale-95 cursor-pointer"
+                  : "border-gold/40 cursor-default"
+              }`}
+            >
+              <img
+                src="/lamp-icon-gold-1.png"
+                alt=""
+                className="w-7 h-auto"
+                style={{ filter: "brightness(0.5) contrast(1.4)" }}
+              />
+            </button>
+            {product.coupon_code && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-deal-green rounded-full border-2 border-white" />
+            )}
+            {copiedCoupon && (
+              <span className="absolute -top-8 right-0 bg-ink text-cream text-[10px] font-semibold px-2 py-1 rounded whitespace-nowrap shadow-lg">
+                Copied: {product.coupon_code}
+              </span>
+            )}
           </div>
         </div>
         {discount && (
@@ -195,5 +225,4 @@ export default function ProductCard({ product }) {
       </div>
     </div>
   );
-
 }

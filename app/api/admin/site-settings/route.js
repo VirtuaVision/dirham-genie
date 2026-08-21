@@ -2,10 +2,10 @@
 
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { isAdminLoggedIn } from "@/lib/auth";
+import { isSuperAdminOrAdmin } from "@/lib/auth";
 
 export async function GET() {
-  if (!(await isAdminLoggedIn())) {
+  if (!(await isSuperAdminOrAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { data, error } = await supabaseAdmin.from("site_settings").select("*");
@@ -16,7 +16,7 @@ export async function GET() {
 }
 
 export async function PUT(request) {
-  if (!(await isAdminLoggedIn())) {
+  if (!(await isSuperAdminOrAdmin())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { key, value } = await request.json();

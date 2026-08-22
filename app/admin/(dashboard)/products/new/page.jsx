@@ -135,12 +135,20 @@ export default function NewProductPage() {
         price: p.price ?? "",
         list_price: p.list_price ?? "",
         asin: p.asin,
-        affiliate_url: p.affiliate_url,
+        // "Fetch for Team" deliberately leaves the affiliate link blank —
+        // each team member pastes their own tracking link before saving.
+        affiliate_url: mode === "teamFetch" ? "" : p.affiliate_url,
         source: "amazon_api",
         rating: p.rating,
         review_count: p.review_count,
       }));
-      setNotice("Product details fetched! Review below, then save.");
+      setNotice(
+        mode === "teamFetch"
+          ? "Product details fetched! Paste your own affiliate link below before saving."
+          : p.affiliate_tag_used
+          ? `Product details fetched! Kept your pasted link's affiliate tag ("${p.affiliate_tag_used}") instead of the site default. Review below, then save.`
+          : "Product details fetched! Review below, then save."
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -323,6 +331,16 @@ export default function NewProductPage() {
         >
           Search Amazon
         </button>
+        <button
+          onClick={() => switchMode("teamFetch")}
+          className={`text-sm px-4 py-2 rounded-md ${
+            mode === "teamFetch"
+              ? "bg-ink text-cream font-semibold border border-gold/40"
+              : "bg-black/80 text-cream/70 hover:text-cream"
+          }`}
+        >
+          Fetch for Team
+        </button>
       </div>
 
       <SocialLinksToggle value={includeSocialLinks} onChange={setIncludeSocialLinks} />
@@ -351,6 +369,34 @@ export default function NewProductPage() {
             Requires your Amazon PA-API credentials to be set up and approved
             (see the README for setup steps). If you haven&apos;t been approved
             yet, use &quot;Add Manually&quot; instead.
+          </p>
+        </form>
+      )}
+
+      {mode === "teamFetch" && (
+        <form onSubmit={handleAmazonFetch} className="rounded-lg p-4 mb-6 bg-black border border-gold/30">
+          <label className="block text-xs text-cream/70 mb-1">
+            Paste any Amazon.ae product page URL (or its ASIN) — details will be fetched, but no affiliate link will be filled in
+          </label>
+          <div className="flex gap-2">
+            <input
+              value={amazonInput}
+              onChange={(e) => setAmazonInput(e.target.value)}
+              placeholder="https://www.amazon.ae/dp/B0XXXXXXX"
+              className="flex-1 rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+            />
+            <button
+              type="submit"
+              disabled={fetching}
+              className="rounded-md bg-gold hover:bg-gold-bright text-ink text-sm font-semibold px-4 disabled:opacity-60"
+            >
+              {fetching ? "Fetching..." : "Fetch"}
+            </button>
+          </div>
+          <p className="text-xs text-cream/50 mt-2">
+            Use this if you have your own Amazon affiliate link and want to add it yourself.
+            The title, price, and photos still get pulled in automatically — you&apos;ll just
+            paste your own link into the &quot;Amazon Affiliate Link&quot; field below before saving.
           </p>
         </form>
       )}

@@ -89,8 +89,14 @@ export async function POST(request) {
   notifyDealAlertSubscribers(data);
   autoGenerateAIImageForNewProduct(data);
 
-  const includeSocialLinks = body.includeSocialLinks !== false;
-  const socialResults = await autoPostNewProduct(data, includeSocialLinks);
+  const autoPostToSocial = body.autoPostToSocial === true;
+  const socialResults = autoPostToSocial
+    ? await autoPostNewProduct(data, true)
+    : {
+        facebook: { skipped: true, reason: "Not posted — the 'also post to social' box wasn't checked." },
+        instagram: { skipped: true, reason: "Not posted — the 'also post to social' box wasn't checked." },
+        whatsapp: { skipped: true, reason: "Not posted — the 'also post to social' box wasn't checked." },
+      };
 
   return NextResponse.json({ product: data, socialResults });
 }

@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatAed } from "@/lib/formatCurrency";
 
+const PAGE_SIZE = 20;
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,14 +15,28 @@ export default function AdminProductsPage() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [selected, setSelected] = useState(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   async function load() {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/products");
+      const params = new URLSearchParams({
+        fields: "list",
+        page: String(page),
+        limit: String(PAGE_SIZE),
+      });
+      if (search) params.set("search", search);
+      if (sourceFilter !== "all") params.set("source", sourceFilter);
+
+      const res = await fetch(`/api/products?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setProducts(json.products || []);
+      setTotalPages(json.totalPages || 1);
+      setTotal(json.total ?? (json.products || []).length);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -28,9 +44,17 @@ export default function AdminProductsPage() {
     }
   }
 
+  // Reset to page 1 whenever the search or filter changes, so results
+  // don't land on an empty out-of-range page.
   useEffect(() => {
-    load();
-  }, []);
+    setPage(1);
+  }, [search, sourceFilter]);
+
+  useEffect(() => {
+    const t = setTimeout(load, search ? 300 : 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search, sourceFilter]);
 
   async function toggleField(product, field) {
     await fetch(`/api/products/${product.id}`, {
@@ -47,16 +71,8 @@ export default function AdminProductsPage() {
     load();
   }
 
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch = p.title.toLowerCase().includes(search.toLowerCase());
-    const matchesSource =
-      sourceFilter === "all" ||
-      (sourceFilter === "amazon_api" ? p.source === "amazon_api" : p.source !== "amazon_api");
-    return matchesSearch && matchesSource;
-  });
-
-  const allFilteredSelected =
-    filteredProducts.length > 0 && filteredProducts.every((p) => selected.has(p.id));
+  const allOnPageSelected =
+    products.length > 0 && products.every((p) => selected.has(p.id));
 
   function toggleOne(id) {
     setSelected((prev) => {
@@ -67,15 +83,14 @@ export default function AdminProductsPage() {
     });
   }
 
-  function toggleSelectAllFiltered() {
+  function toggleSelectAllOnPage() {
     setSelected((prev) => {
-      if (allFilteredSelected) {
-        const next = new Set(prev);
-        filteredProducts.forEach((p) => next.delete(p.id));
-        return next;
-      }
       const next = new Set(prev);
-      filteredProducts.forEach((p) => next.add(p.id));
+      if (allOnPageSelected) {
+        products.forEach((p) => next.delete(p.id));
+      } else {
+        products.forEach((p) => next.add(p.id));
+      }
       return next;
     });
   }
@@ -90,10 +105,10 @@ export default function AdminProductsPage() {
       return;
     setBulkDeleting(true);
     try {
-      const res = await fetch("/api/products/bulk-delete", {
+      const res = await fetch("/api/products/mega-deals-cleanup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: Array.from(selected) }),
+        body: JSON.stringify({ ids: Array.from(selected), action: "delete" }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -126,54 +141,51 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      {loading && <p className="text-cream/50 text-sm">Loading...</p>}
-      {error && <p className="text-red-300 text-sm">{error}</p>}
-
-      {!loading && products.length === 0 && (
-        <p className="text-cream/50 text-sm">
-          No products yet. Click &quot;Add Product&quot; to create your first one.
-        </p>
-      )}
-
-      {!loading && products.length > 0 && (
-        <div className="flex flex-wrap gap-3 mb-4">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by title..."
-            className="flex-1 min-w-[180px] bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30"
-          />
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90"
+      {error && (
+        <div className="flex items-center gap-3 mb-4">
+          <p className="text-red-300 text-sm">{error}</p>
+          <button
+            onClick={load}
+            className="text-xs rounded-md border border-gold/30 text-gold px-3 py-1.5 hover:border-gold"
           >
-            <option value="all">All sources ({products.length})</option>
-            <option value="amazon_api">
-              Auto-fetched from Amazon ({products.filter((p) => p.source === "amazon_api").length})
-            </option>
-            <option value="manual">
-              Manual ({products.filter((p) => p.source !== "amazon_api").length})
-            </option>
-          </select>
+            Retry
+          </button>
         </div>
       )}
 
-      {!loading && filteredProducts.length > 0 && (
+      <div className="flex flex-wrap gap-3 mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by title..."
+          className="flex-1 min-w-[180px] bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30"
+        />
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          className="bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90"
+        >
+          <option value="all">All sources</option>
+          <option value="amazon_api">Auto-fetched from Amazon</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+
+      {!loading && products.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 mb-4 bg-white/5 rounded-lg px-3 py-2">
           <label className="flex items-center gap-2 text-sm text-cream/80 cursor-pointer">
             <input
               type="checkbox"
-              checked={allFilteredSelected}
-              onChange={toggleSelectAllFiltered}
+              checked={allOnPageSelected}
+              onChange={toggleSelectAllOnPage}
             />
-            Select all ({filteredProducts.length} shown)
+            Select all on this page ({products.length})
           </label>
 
           {selected.size > 0 && (
             <>
-              <span className="text-xs text-cream/50">{selected.size} selected</span>
+              <span className="text-xs text-cream/50">{selected.size} selected total</span>
               <button
                 onClick={deleteSelected}
                 disabled={bulkDeleting}
@@ -192,69 +204,94 @@ export default function AdminProductsPage() {
         </div>
       )}
 
-      <div className="space-y-3">
-        {!loading && products.length > 0 && filteredProducts.length === 0 && (
-          <p className="text-cream/50 text-sm">No products match that search/filter.</p>
-        )}
-        {filteredProducts.map((p) => (
-          <div
-            key={p.id}
-            className="card-surface rounded-lg p-3 flex flex-col sm:flex-row sm:items-center gap-3"
-          >
-            <input
-              type="checkbox"
-              checked={selected.has(p.id)}
-              onChange={() => toggleOne(p.id)}
-              className="shrink-0"
-            />
+      {loading ? (
+        <p className="text-cream/50 text-sm">Loading...</p>
+      ) : products.length === 0 ? (
+        <p className="text-cream/50 text-sm">No products match.</p>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {products.map((p) => (
+              <div
+                key={p.id}
+                className="card-surface rounded-lg p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(p.id)}
+                  onChange={() => toggleOne(p.id)}
+                  className="shrink-0"
+                />
 
-            <div className="relative w-14 h-14 shrink-0 bg-white/5 rounded">
-              {p.image_url && (
-                <Image src={p.image_url} alt={p.title} fill sizes="56px" className="object-contain p-1" />
-              )}
-            </div>
+                <div className="relative w-14 h-14 shrink-0 bg-white/5 rounded">
+                  {p.image_url && (
+                    <Image src={p.image_url} alt={p.title} fill sizes="56px" className="object-contain p-1" />
+                  )}
+                </div>
 
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-cream/90 truncate">{p.title}</p>
-              <p className="text-xs text-cream/50">
-                {formatAed(p.price) || "No price"} &middot; {p.categories?.name || "Uncategorised"} &middot;{" "}
-                {p.source === "amazon_api" ? "Auto-fetched" : "Manual"}
-              </p>
-            </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-cream/90 truncate">{p.title}</p>
+                  <p className="text-xs text-cream/50">
+                    {formatAed(p.price) || "No price"} &middot; {p.categories?.name || "Uncategorised"} &middot;{" "}
+                    {p.source === "amazon_api" ? "Auto-fetched" : "Manual"}
+                  </p>
+                </div>
 
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                onClick={() => toggleField(p, "is_active")}
-                className={`px-2 py-1 rounded ${
-                  p.is_active ? "bg-deal-green/20 text-deal-green" : "bg-white/5 text-cream/40"
-                }`}
-              >
-                {p.is_active ? "Active" : "Hidden"}
-              </button>
-              <button
-                onClick={() => toggleField(p, "is_featured")}
-                className={`px-2 py-1 rounded ${
-                  p.is_featured ? "bg-gold/20 text-gold" : "bg-white/5 text-cream/40"
-                }`}
-              >
-                {p.is_featured ? "Featured" : "Not featured"}
-              </button>
-              <Link
-                href={`/admin/products/${p.id}/edit`}
-                className="px-2 py-1 rounded bg-white/5 text-cream/70 hover:text-gold"
-              >
-                Edit
-              </Link>
-              <button
-                onClick={() => remove(p)}
-                className="px-2 py-1 rounded bg-white/5 text-cream/70 hover:text-red-300"
-              >
-                Delete
-              </button>
-            </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <button
+                    onClick={() => toggleField(p, "is_active")}
+                    className={`px-2 py-1 rounded ${
+                      p.is_active ? "bg-deal-green/20 text-deal-green" : "bg-white/5 text-cream/40"
+                    }`}
+                  >
+                    {p.is_active ? "Active" : "Hidden"}
+                  </button>
+                  <button
+                    onClick={() => toggleField(p, "is_featured")}
+                    className={`px-2 py-1 rounded ${
+                      p.is_featured ? "bg-gold/20 text-gold" : "bg-white/5 text-cream/40"
+                    }`}
+                  >
+                    {p.is_featured ? "Featured" : "Not featured"}
+                  </button>
+                  <Link
+                    href={`/admin/products/${p.id}/edit`}
+                    className="px-2 py-1 rounded bg-white/5 text-cream/70 hover:text-gold"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    onClick={() => remove(p)}
+                    className="px-2 py-1 rounded bg-white/5 text-cream/70 hover:text-red-300"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+
+          <div className="flex items-center justify-between mt-6 text-sm text-cream/60">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="rounded-md border border-gold/20 px-3 py-1.5 disabled:opacity-40 hover:border-gold/50"
+            >
+              ← Prev
+            </button>
+            <span>
+              Page {page} of {totalPages} ({total} product{total === 1 ? "" : "s"})
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded-md border border-gold/20 px-3 py-1.5 disabled:opacity-40 hover:border-gold/50"
+            >
+              Next →
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

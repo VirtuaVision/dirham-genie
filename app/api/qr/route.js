@@ -1,11 +1,9 @@
 import QRCode from "qrcode";
-import { isAdminLoggedIn } from "@/lib/auth";
 
+// Public on purpose: QR codes need to render on the public product page for
+// any visitor, not just logged-in admins. It only ever generates a QR image
+// for a URL — no data exposure, nothing sensitive.
 export async function GET(request) {
-  if (!(await isAdminLoggedIn())) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   const url = new URL(request.url).searchParams.get("url");
   if (!url) return new Response("Missing url", { status: 400 });
 

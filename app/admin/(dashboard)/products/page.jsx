@@ -412,7 +412,6 @@ export default function AdminProductsPage() {
           </div>
         </>
       )}
-
     </div>
   );
 }

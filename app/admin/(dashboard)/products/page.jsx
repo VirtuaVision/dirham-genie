@@ -7,6 +7,45 @@ import { formatAed } from "@/lib/formatCurrency";
 
 const PAGE_SIZE = 20;
 
+function toLocalDateString(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+const DATE_PRESETS = [
+  { key: "all", label: "All Time" },
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "last7", label: "Last 7 Days" },
+  { key: "last30", label: "Last 30 Days" },
+  { key: "custom", label: "Custom Range" },
+];
+
+function computePresetRange(key) {
+  const now = new Date();
+  const today = toLocalDateString(now);
+  if (key === "today") return { from: today, to: today };
+  if (key === "yesterday") {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    const s = toLocalDateString(y);
+    return { from: s, to: s };
+  }
+  if (key === "last7") {
+    const from = new Date(now);
+    from.setDate(from.getDate() - 6);
+    return { from: toLocalDateString(from), to: today };
+  }
+  if (key === "last30") {
+    const from = new Date(now);
+    from.setDate(from.getDate() - 29);
+    return { from: toLocalDateString(from), to: today };
+  }
+  return { from: "", to: "" };
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,18 +58,29 @@ export default function AdminProductsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
+  const [datePreset, setDatePreset] = useState("all");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [selectingAllMatching, setSelectingAllMatching] = useState(false);
+
+  const activeRange = datePreset === "custom"
+    ? { from: customFrom, to: customTo }
+    : computePresetRange(datePreset);
+
+  function buildParams(extra = {}) {
+    const params = new URLSearchParams({ fields: "list", ...extra });
+    if (search) params.set("search", search);
+    if (sourceFilter !== "all") params.set("source", sourceFilter);
+    if (activeRange.from) params.set("dateFrom", activeRange.from);
+    if (activeRange.to) params.set("dateTo", activeRange.to);
+    return params;
+  }
+
   async function load() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        fields: "list",
-        page: String(page),
-        limit: String(PAGE_SIZE),
-      });
-      if (search) params.set("search", search);
-      if (sourceFilter !== "all") params.set("source", sourceFilter);
-
+      const params = buildParams({ page: String(page), limit: String(PAGE_SIZE) });
       const res = await fetch(`/api/products?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -44,17 +94,17 @@ export default function AdminProductsPage() {
     }
   }
 
-  // Reset to page 1 whenever the search or filter changes, so results
-  // don't land on an empty out-of-range page.
+  // Reset to page 1 whenever any filter changes, so results don't land on
+  // an empty out-of-range page.
   useEffect(() => {
     setPage(1);
-  }, [search, sourceFilter]);
+  }, [search, sourceFilter, datePreset, customFrom, customTo]);
 
   useEffect(() => {
     const t = setTimeout(load, search ? 300 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search, sourceFilter]);
+  }, [page, search, sourceFilter, datePreset, customFrom, customTo]);
 
   async function toggleField(product, field) {
     await fetch(`/api/products/${product.id}`, {
@@ -93,6 +143,21 @@ export default function AdminProductsPage() {
       }
       return next;
     });
+  }
+
+  async function selectAllMatching() {
+    setSelectingAllMatching(true);
+    try {
+      const params = buildParams({ idsOnly: "true" });
+      const res = await fetch(`/api/products?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setSelected(new Set((json.products || []).map((p) => p.id)));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSelectingAllMatching(false);
+    }
   }
 
   async function deleteSelected() {
@@ -172,6 +237,54 @@ export default function AdminProductsPage() {
         </select>
       </div>
 
+      <div className="mb-4 bg-white/5 rounded-lg p-3">
+        <p className="text-xs text-cream/60 mb-2">Filter by date added:</p>
+        <div className="flex flex-wrap gap-2">
+          {DATE_PRESETS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setDatePreset(p.key)}
+              className={`text-xs px-3 py-1.5 rounded-md border transition-colors ${
+                datePreset === p.key
+                  ? "border-gold bg-gold/15 text-gold"
+                  : "border-gold/20 text-cream/60 hover:border-gold/50"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {datePreset === "custom" && (
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <label className="text-xs text-cream/60">
+              From
+              <input
+                type="date"
+                value={customFrom}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="block mt-1 bg-ink-lighter border border-gold/20 rounded-md px-2 py-1.5 text-sm text-cream/90"
+              />
+            </label>
+            <label className="text-xs text-cream/60">
+              To
+              <input
+                type="date"
+                value={customTo}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="block mt-1 bg-ink-lighter border border-gold/20 rounded-md px-2 py-1.5 text-sm text-cream/90"
+              />
+            </label>
+          </div>
+        )}
+        {datePreset !== "all" && activeRange.from && (
+          <p className="text-xs text-cream/40 mt-2">
+            Showing products added {activeRange.from === activeRange.to
+              ? `on ${activeRange.from}`
+              : `between ${activeRange.from} and ${activeRange.to}`}
+          </p>
+        )}
+      </div>
+
       {!loading && products.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 mb-4 bg-white/5 rounded-lg px-3 py-2">
           <label className="flex items-center gap-2 text-sm text-cream/80 cursor-pointer">
@@ -182,6 +295,13 @@ export default function AdminProductsPage() {
             />
             Select all on this page ({products.length})
           </label>
+          <button
+            onClick={selectAllMatching}
+            disabled={selectingAllMatching}
+            className="text-xs text-gold underline underline-offset-2 disabled:opacity-50"
+          >
+            {selectingAllMatching ? "Selecting..." : `Select all ${total} matching this filter`}
+          </button>
 
           {selected.size > 0 && (
             <>

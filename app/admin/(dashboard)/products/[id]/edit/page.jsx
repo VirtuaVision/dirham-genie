@@ -11,6 +11,8 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   useEffect(() => {
     fetch(`/api/products/${id}`)
@@ -32,6 +34,26 @@ export default function EditProductPage() {
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleImageUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    setUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/products/upload-image", { method: "POST", body: formData });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      update("image_url", json.url);
+    } catch (err) {
+      setUploadError(err.message);
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
   }
 
   async function handleSave(e) {
@@ -137,6 +159,22 @@ export default function EditProductPage() {
             onChange={(e) => update("image_url", e.target.value)}
             className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
           />
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-cream/40">or</span>
+            <label className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold text-xs font-semibold px-3 py-2 cursor-pointer">
+              {uploadingImage ? "Uploading..." : "📁 Upload from device"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageUpload}
+                disabled={uploadingImage}
+                className="hidden"
+              />
+            </label>
+          </div>
+          {uploadError && (
+            <p className="text-xs text-red-400 mt-1">{uploadError}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">

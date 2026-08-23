@@ -237,6 +237,19 @@ export default async function ProductPage({ params }) {
             <ShareButtons title={product.title} url={pageUrl} />
           </div>
 
+          {product.affiliate_url && (
+            <div className="mt-6 flex items-center gap-3">
+              <img
+                src={`/api/qr?url=${encodeURIComponent(product.affiliate_url)}`}
+                alt="Scan to open this deal on Amazon"
+                className="w-20 h-20 rounded border border-gold/20 bg-white p-1"
+              />
+              <p className="text-xs text-cream/50 max-w-[180px]">
+                Scan to open this deal on your phone
+              </p>
+            </div>
+          )}
+
           {product.description && (
             <div className="mt-8">
               <h2 className="text-gold font-semibold mb-2 text-sm uppercase tracking-wide">

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 
 const emptyForm = {
@@ -80,6 +81,7 @@ export default function NewProductPage() {
   const [notice, setNotice] = useState(null);
   const [includeSocialLinks, setIncludeSocialLinks] = useState(false);
   const [savedSocialResults, setSavedSocialResults] = useState(null);
+  const [savedProduct, setSavedProduct] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState(null);
 
@@ -181,6 +183,7 @@ export default function NewProductPage() {
     setSaving(true);
     setError(null);
     setSavedSocialResults(null);
+    setSavedProduct(null);
     try {
       const res = await fetch("/api/products", {
         method: "POST",
@@ -196,7 +199,10 @@ export default function NewProductPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setSavedSocialResults(json.socialResults || {});
-      setNotice("Product saved! See posting results below.");
+      setSavedProduct(json.product);
+      setNotice(null);
+      setForm(emptyForm);
+      setAmazonInput("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -514,6 +520,33 @@ export default function NewProductPage() {
         </p>
       )}
 
+      {savedProduct && (
+        <div className="bg-deal-green/10 border border-deal-green/30 rounded-lg p-4 mb-4">
+          <p className="text-deal-green text-sm font-semibold mb-1">
+            ✅ &quot;{savedProduct.title}&quot; is now live on the website
+          </p>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <a
+              href={`https://dirham-genie.vercel.app/product/${savedProduct.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold underline underline-offset-2"
+            >
+              View on website ↗
+            </a>
+            <Link
+              href="/admin/products"
+              className="text-cream/70 underline underline-offset-2"
+            >
+              View in All Products
+            </Link>
+          </div>
+          <div className="mt-3">
+            <SocialResultsPanel results={savedSocialResults} />
+          </div>
+        </div>
+      )}
+
       {mode !== "search" && (
       <form onSubmit={handleSave} className="card-surface rounded-lg p-5 space-y-4">
         {form.image_url && (
@@ -728,18 +761,7 @@ export default function NewProductPage() {
           >
             {saving ? "Saving & posting..." : "Save Product"}
           </button>
-          {savedSocialResults && (
-            <button
-              type="button"
-              onClick={() => router.push("/admin/products")}
-              className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-5 py-2.5 text-sm"
-            >
-              Done — View All Products
-            </button>
-          )}
         </div>
-
-        <SocialResultsPanel results={savedSocialResults} />
       </form>
       )}
     </div>

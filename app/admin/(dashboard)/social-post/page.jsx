@@ -214,6 +214,9 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
   const [scheduledFor, setScheduledFor] = useState("");
   const [queueing, setQueueing] = useState(false);
   const [queueMessage, setQueueMessage] = useState(null);
+  const [headerTitle, setHeaderTitle] = useState("TODAY'S BEST AMAZON DEALS");
+  const [headerSubtitle, setHeaderSubtitle] = useState("Dirham Genie · dirham-genie.vercel.app");
+  const [footerText, setFooterText] = useState("dirham-genie.vercel.app");
 
   useEffect(() => {
     if (!preselectProductId || products.length === 0) return;
@@ -274,10 +277,10 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
       ctx.fillStyle = "#92400E";
       ctx.font = "bold 40px Arial";
       ctx.textBaseline = "top";
-      ctx.fillText("TODAY'S BEST AMAZON DEALS", 150, 55);
+      ctx.fillText(headerTitle, 150, 55);
       ctx.fillStyle = "rgba(43,34,28,0.55)";
       ctx.font = "26px Arial";
-      ctx.fillText("Dirham Genie · dirham-genie.vercel.app", 150, 108);
+      ctx.fillText(headerSubtitle, 150, 108);
 
       const areaX = 24, areaY = 170, areaW = W - 48, areaH = H - 170 - 70;
       const isSpotlight = chosen.length === 1;
@@ -448,7 +451,7 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
 
       ctx.fillStyle = "rgba(43,34,28,0.4)";
       ctx.font = "18px Arial";
-      ctx.fillText("dirham-genie.vercel.app", areaX, H - 40);
+      ctx.fillText(footerText, areaX, H - 40);
 
       const lines = chosen.map((p) => {
         const price = formatAed(p.price) || "See price on Amazon";
@@ -579,6 +582,32 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
               </button>
             ))}
           </div>
+
+          <p className="text-xs text-cream/60 mb-2">Header text (top of the image):</p>
+          <div className="grid sm:grid-cols-2 gap-2 mb-4">
+            <input
+              type="text"
+              value={headerTitle}
+              onChange={(e) => setHeaderTitle(e.target.value)}
+              placeholder="Main heading, e.g. TODAY'S BEST AMAZON DEALS"
+              className="bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30"
+            />
+            <input
+              type="text"
+              value={headerSubtitle}
+              onChange={(e) => setHeaderSubtitle(e.target.value)}
+              placeholder="Subheading, e.g. Dirham Genie · dirham-genie.vercel.app"
+              className="bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30"
+            />
+          </div>
+          <p className="text-xs text-cream/60 mb-2">Footer text (bottom-left of the image):</p>
+          <input
+            type="text"
+            value={footerText}
+            onChange={(e) => setFooterText(e.target.value)}
+            placeholder="e.g. dirham-genie.vercel.app"
+            className="w-full bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30 mb-4"
+          />
 
           <p className="text-xs text-cream/60 mb-2">
             Select up to {MAX_SLOTS} products ({selected.length}/{MAX_SLOTS} selected):
@@ -918,9 +947,10 @@ function SocialPostPageInner() {
   const preselectProductId = searchParams.get("product");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
-    fetch("/api/products")
+    fetch("/api/products?fields=social")
       .then((r) => r.json())
       .then((json) => {
         const active = (json.products || []).filter((p) => p.is_active);
@@ -938,23 +968,48 @@ function SocialPostPageInner() {
         generate a ready-to-share image plus a caption with all the affiliate links included.
       </p>
 
-      <PostGeneratorCard
-        title="All Platforms"
-        description="Generate once, then post to Facebook, Instagram, and WhatsApp — individually or all at once."
-        products={products}
-        loading={loading}
-        platforms={["facebook", "instagram", "whatsapp"]}
-        preselectProductId={preselectProductId}
-      />
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`text-sm px-4 py-2 rounded-md font-semibold transition-colors ${
+            activeTab === "all" ? "bg-gold text-ink" : "bg-white/5 text-cream/70"
+          }`}
+        >
+          All Platforms
+        </button>
+        <button
+          onClick={() => setActiveTab("instagram")}
+          className={`text-sm px-4 py-2 rounded-md font-semibold transition-colors ${
+            activeTab === "instagram"
+              ? "bg-[#C13584] text-white"
+              : "bg-white/5 text-cream/70"
+          }`}
+        >
+          Instagram Only
+        </button>
+      </div>
 
-      <PostGeneratorCard
-        title="Instagram Only"
-        description="A separate generator just for Instagram — pick products, tweak the caption, and post there alone without touching Facebook or WhatsApp."
-        products={products}
-        loading={loading}
-        platforms={["instagram"]}
-        preselectProductId={null}
-      />
+      {activeTab === "all" && (
+        <PostGeneratorCard
+          title="All Platforms"
+          description="Generate once, then post to Facebook, Instagram, and WhatsApp — individually or all at once."
+          products={products}
+          loading={loading}
+          platforms={["facebook", "instagram", "whatsapp"]}
+          preselectProductId={preselectProductId}
+        />
+      )}
+
+      {activeTab === "instagram" && (
+        <PostGeneratorCard
+          title="Instagram Only"
+          description="A separate generator just for Instagram — pick products, tweak the caption, and post there alone without touching Facebook or WhatsApp."
+          products={products}
+          loading={loading}
+          platforms={["instagram"]}
+          preselectProductId={null}
+        />
+      )}
 
       <QueueList />
     </div>

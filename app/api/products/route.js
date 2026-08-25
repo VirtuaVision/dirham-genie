@@ -12,7 +12,7 @@ export async function GET(request) {
   }
 
   const params = request.nextUrl.searchParams;
-  const isListView = params.get("fields") === "list";
+  const fieldsMode = params.get("fields"); // "list" | "social" | null (= full)
   const limit = parseInt(params.get("limit") || "0", 10); // 0 = no pagination, existing behavior
   const page = Math.max(1, parseInt(params.get("page") || "1", 10));
   const search = params.get("search");
@@ -21,14 +21,15 @@ export async function GET(request) {
   const dateTo = params.get("dateTo"); // "YYYY-MM-DD"
   const idsOnly = params.get("idsOnly") === "true";
 
+  const FIELD_SETS = {
+    list: "id, title, slug, image_url, price, list_price, source, is_active, is_featured, categories(name, slug)",
+    social: "id, title, slug, image_url, additional_images, price, list_price, affiliate_url, is_active",
+  };
+
   let query = supabaseAdmin
     .from("products")
     .select(
-      idsOnly
-        ? "id"
-        : isListView
-        ? "id, title, slug, image_url, price, list_price, source, is_active, is_featured, categories(name, slug)"
-        : "*, categories(name, slug)",
+      idsOnly ? "id" : FIELD_SETS[fieldsMode] || "*, categories(name, slug)",
       limit ? { count: "exact" } : undefined
     )
     .order("created_at", { ascending: false });

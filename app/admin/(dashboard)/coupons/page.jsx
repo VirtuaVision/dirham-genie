@@ -7,6 +7,7 @@ const empty = { title: "", code: "", description: "", affiliate_url: "", expires
 export default function CouponsPage() {
   const [coupons, setCoupons] = useState([]);
   const [form, setForm] = useState(empty);
+  const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -23,19 +24,38 @@ export default function CouponsPage() {
     load();
   }, []);
 
-  async function handleAdd(e) {
+  function startEdit(coupon) {
+    setEditingId(coupon.id);
+    setForm({
+      title: coupon.title || "",
+      code: coupon.code || "",
+      description: coupon.description || "",
+      affiliate_url: coupon.affiliate_url || "",
+      expires_at: coupon.expires_at ? coupon.expires_at.slice(0, 16) : "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(empty);
+    setError(null);
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/coupons", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/coupons/${editingId}` : "/api/coupons", {
+        method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setForm(empty);
+      setEditingId(null);
       load();
     } catch (err) {
       setError(err.message);
@@ -56,6 +76,7 @@ export default function CouponsPage() {
   async function remove(coupon) {
     if (!confirm(`Delete coupon "${coupon.title}"?`)) return;
     await fetch(`/api/coupons/${coupon.id}`, { method: "DELETE" });
+    if (editingId === coupon.id) cancelEdit();
     load();
   }
 
@@ -65,7 +86,12 @@ export default function CouponsPage() {
 
       {error && <p className="text-red-300 text-sm mb-4">{error}</p>}
 
-      <form onSubmit={handleAdd} className="card-surface rounded-lg p-4 mb-6 space-y-3">
+      <form onSubmit={handleSubmit} className="card-surface rounded-lg p-4 mb-6 space-y-3">
+        {editingId && (
+          <p className="text-xs text-gold font-semibold">
+            Editing coupon — make your changes and tap Update, or Cancel to stop.
+          </p>
+        )}
         <div className="grid sm:grid-cols-2 gap-3">
           <input
             required
@@ -103,13 +129,24 @@ export default function CouponsPage() {
             className="rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
           />
         </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-4 py-2 text-sm disabled:opacity-60"
-        >
-          {saving ? "Adding..." : "Add Coupon"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={saving}
+            className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-4 py-2 text-sm disabled:opacity-60"
+          >
+            {saving ? (editingId ? "Updating..." : "Adding...") : editingId ? "Update Coupon" : "Add Coupon"}
+          </button>
+          {editingId && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-4 py-2 text-sm"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
 
       {loading ? (
@@ -131,6 +168,12 @@ export default function CouponsPage() {
                 className={`text-xs px-2 py-1 rounded ${c.is_active ? "bg-deal-green/20 text-deal-green" : "bg-white/5 text-cream/40"}`}
               >
                 {c.is_active ? "Active" : "Hidden"}
+              </button>
+              <button
+                onClick={() => startEdit(c)}
+                className="text-xs px-2 py-1 rounded bg-white/5 text-cream/70 hover:text-gold"
+              >
+                Edit
               </button>
               <button
                 onClick={() => remove(c)}

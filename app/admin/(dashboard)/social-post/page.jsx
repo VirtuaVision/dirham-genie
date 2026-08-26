@@ -217,6 +217,12 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
   const [headerTitle, setHeaderTitle] = useState("TODAY'S BEST AMAZON DEALS");
   const [headerSubtitle, setHeaderSubtitle] = useState("Dirham Genie · dirham-genie.vercel.app");
   const [footerText, setFooterText] = useState("dirham-genie.vercel.app");
+  const [disclosureText, setDisclosureText] = useState(
+    "#ad | Affiliate links — as an Amazon Associate, Dirham Genie earns from qualifying purchases."
+  );
+  const [linksBlockText, setLinksBlockText] = useState(
+    "📍 Shop more: https://dirham-genie.vercel.app/\n💸 Extra discount codes: https://dirham-genie.vercel.app/coupons"
+  );
 
   useEffect(() => {
     if (!preselectProductId || products.length === 0) return;
@@ -467,12 +473,11 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
           `📸 Instagram: https://www.instagram.com/dirham_genie\n\n`
         : "";
       const generatedCaption =
-        `#ad | Affiliate links — as an Amazon Associate, Dirham Genie earns from qualifying purchases.\n\n` +
+        `${disclosureText}\n\n` +
         `${pickRandom(CAPTION_HOOKS)}\n\n` +
         lines.join("\n\n") +
         `\n\n${pickRandom(CAPTION_CTAS)}\n\n` +
-        `📍 Shop more: https://dirham-genie.vercel.app/\n` +
-        `💸 Extra discount codes: https://dirham-genie.vercel.app/coupons\n` +
+        `${linksBlockText}\n` +
         socialLinksBlock +
         `${pickRandom(CAPTION_SIGNOFFS)}\n\n` +
         `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay #Ad`;
@@ -606,6 +611,24 @@ function PostGeneratorCard({ title, description, products, loading, platforms, p
             value={footerText}
             onChange={(e) => setFooterText(e.target.value)}
             placeholder="e.g. dirham-genie.vercel.app"
+            className="w-full bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30 mb-4"
+          />
+
+          <p className="text-xs text-cream/60 mb-2">Disclosure line (top of caption text):</p>
+          <input
+            type="text"
+            value={disclosureText}
+            onChange={(e) => setDisclosureText(e.target.value)}
+            placeholder="e.g. #ad | Affiliate links — as an Amazon Associate, Dirham Genie earns from qualifying purchases."
+            className="w-full bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30 mb-4"
+          />
+
+          <p className="text-xs text-cream/60 mb-2">Links block (Shop more / discount codes, in caption text):</p>
+          <textarea
+            value={linksBlockText}
+            onChange={(e) => setLinksBlockText(e.target.value)}
+            rows={2}
+            placeholder={"📍 Shop more: https://dirham-genie.vercel.app/\n💸 Extra discount codes: https://dirham-genie.vercel.app/coupons"}
             className="w-full bg-ink-lighter border border-gold/20 rounded-md px-3 py-2 text-sm text-cream/90 placeholder:text-cream/30 mb-4"
           />
 

@@ -84,6 +84,7 @@ export default function NewProductPage() {
   const [savedProduct, setSavedProduct] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [minDiscount, setMinDiscount] = useState(0);
@@ -114,11 +115,28 @@ export default function NewProductPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  async function checkDuplicateAsin(asin) {
+    if (!asin) return;
+    try {
+      const res = await fetch(`/api/products/check-asin?asin=${encodeURIComponent(asin)}`);
+      const json = await res.json();
+      if (json.exists) {
+        setDuplicateWarning(json.product);
+      } else {
+        setDuplicateWarning(null);
+      }
+    } catch {
+      // if the check itself fails, don't block the admin — just skip the warning
+      setDuplicateWarning(null);
+    }
+  }
+
   async function handleAmazonFetch(e) {
     e.preventDefault();
     setFetching(true);
     setError(null);
     setNotice(null);
+    setDuplicateWarning(null);
     try {
       const res = await fetch("/api/amazon/fetch", {
         method: "POST",
@@ -151,6 +169,7 @@ export default function NewProductPage() {
           ? `Product details fetched! Kept your pasted link's affiliate tag ("${p.affiliate_tag_used}") instead of the site default. Review below, then save.`
           : "Product details fetched! Review below, then save."
       );
+      checkDuplicateAsin(p.asin);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -203,6 +222,7 @@ export default function NewProductPage() {
       setNotice(null);
       setForm(emptyForm);
       setAmazonInput("");
+      setDuplicateWarning(null);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -518,6 +538,30 @@ export default function NewProductPage() {
         <p className="bg-deal-green/10 border border-deal-green/30 text-deal-green text-sm rounded p-3 mb-4">
           {notice}
         </p>
+      )}
+
+      {duplicateWarning && (
+        <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 mb-4">
+          <p className="text-amber-300 text-sm font-semibold">
+            ⚠️ This product is already in your catalog: &quot;{duplicateWarning.title}&quot;
+            {duplicateWarning.is_active === false ? " (currently hidden)" : ""}
+          </p>
+          <div className="flex gap-4 text-sm mt-1">
+            <Link
+              href={`/admin/products/${duplicateWarning.id}/edit`}
+              className="text-gold underline underline-offset-2"
+            >
+              Edit the existing product instead
+            </Link>
+            <button
+              type="button"
+              onClick={() => setDuplicateWarning(null)}
+              className="text-cream/60 underline underline-offset-2"
+            >
+              Add it anyway
+            </button>
+          </div>
+        </div>
       )}
 
       {savedProduct && (

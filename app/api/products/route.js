@@ -5,6 +5,7 @@ import slugify from "slugify";
 import { notifyDealAlertSubscribers } from "@/lib/notifyDealAlerts";
 import { autoPostNewProduct } from "@/lib/socialPost";
 import { autoGenerateAIImageForNewProduct } from "@/lib/aiImageGenerator";
+import { matchCategoryFromAmazon } from "@/lib/matchCategoryFromAmazon";
 
 export async function GET(request) {
   if (!(await isAdminLoggedIn())) {
@@ -85,6 +86,14 @@ export async function POST(request) {
     slug = `${baseSlug}-${attempt}`;
   }
 
+  // Auto-categorize: if no category was chosen but Amazon told us roughly
+  // what this product is, try to match it to one of our existing
+  // categories instead of leaving it sitting in "Uncategorised".
+  let categoryId = body.category_id || null;
+  if (!categoryId && body.amazon_category) {
+    categoryId = await matchCategoryFromAmazon(body.amazon_category);
+  }
+
   const { data, error } = await supabaseAdmin
     .from("products")
     .insert({
@@ -98,7 +107,7 @@ export async function POST(request) {
       currency: body.currency || "AED",
       asin: body.asin || null,
       affiliate_url: body.affiliate_url,
-      category_id: body.category_id || null,
+      category_id: categoryId,
       source: body.source || "manual",
       is_featured: !!body.is_featured,
       is_active: body.is_active !== false,

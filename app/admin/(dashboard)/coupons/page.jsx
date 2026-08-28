@@ -11,6 +11,7 @@ export default function CouponsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [generatingDesc, setGeneratingDesc] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -40,6 +41,33 @@ export default function CouponsPage() {
     setEditingId(null);
     setForm(empty);
     setError(null);
+  }
+
+  async function handleGenerateDescription() {
+    if (!form.title) {
+      setError("Add a coupon title first, then generate a description.");
+      return;
+    }
+    setGeneratingDesc(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/coupons/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title,
+          code: form.code,
+          affiliate_url: form.affiliate_url,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setForm((f) => ({ ...f, description: json.description }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGeneratingDesc(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -107,13 +135,26 @@ export default function CouponsPage() {
             className="rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
           />
         </div>
-        <textarea
-          placeholder="Description / terms"
-          rows={2}
-          value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-        />
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs text-cream/60">Description / terms</label>
+            <button
+              type="button"
+              onClick={handleGenerateDescription}
+              disabled={generatingDesc}
+              className="text-xs text-gold hover:text-gold-bright font-semibold disabled:opacity-50"
+            >
+              {generatingDesc ? "Writing..." : "✨ Auto-write"}
+            </button>
+          </div>
+          <textarea
+            placeholder="Description / terms"
+            rows={2}
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+          />
+        </div>
         <input
           placeholder="Amazon affiliate link this coupon applies to"
           value={form.affiliate_url}

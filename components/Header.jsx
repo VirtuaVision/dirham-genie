@@ -43,7 +43,7 @@ export default async function Header() {
           </Link>
 
           <div className="hidden md:flex flex-1 max-w-md">
-            <SearchBar placeholder={t(locale, "search")} />
+            <SearchBar placeholder={t(locale, "search")} mode="amazon" />
           </div>
 
           <nav className="hidden lg:flex items-center gap-5 text-sm">
@@ -84,7 +84,7 @@ export default async function Header() {
         </div>
 
         <div className="md:hidden pb-3 flex">
-          <SearchBar placeholder={t(locale, "search")} />
+          <SearchBar placeholder={t(locale, "search")} mode="amazon" />
         </div>
       </div>
     </header>

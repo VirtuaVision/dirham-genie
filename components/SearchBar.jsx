@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatAed } from "@/lib/formatCurrency";
 
-export default function SearchBar({ placeholder = "Search for a deal..." }) {
+export default function SearchBar({ placeholder = "Search for a deal...", mode = "site" }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [open, setOpen] = useState(false);
@@ -49,7 +49,8 @@ export default function SearchBar({ placeholder = "Search for a deal..." }) {
     e.preventDefault();
     if (!query.trim()) return;
     setOpen(false);
-    router.push(`/search?q=${encodeURIComponent(query)}`);
+    const suffix = mode === "amazon" ? "&source=amazon" : "";
+    router.push(`/search?q=${encodeURIComponent(query)}${suffix}`);
   }
 
   return (

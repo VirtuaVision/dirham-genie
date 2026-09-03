@@ -13,201 +13,90 @@ import EmptyState from "@/components/EmptyState";
 import TrustBar from "@/components/TrustBar";
 import CategorySidebar from "@/components/CategorySidebar";
 import FilterBar from "@/components/FilterBar";
-import BannerStrip from "@/components/BannerStrip";
-import PrimePromoBanner from "@/components/PrimePromoBanner";
-import CategoryBanner from "@/components/CategoryBanner";
-import FlashSaleBanner from "@/components/FlashSaleBanner";
-import CouponBanner from "@/components/CouponBanner";
-import SplitBanner from "@/components/SplitBanner";
-import TripleImageBanner from "@/components/TripleImageBanner";
-import SimpleImageBanner from "@/components/SimpleImageBanner";
-import WhatsAppBanner from "@/components/WhatsAppBanner";
-import SocialFollowBanner from "@/components/SocialFollowBanner";
-import AnnouncementBar from "@/components/AnnouncementBar";
-import BrandSpotlightBanner from "@/components/BrandSpotlightBanner";
-import SeasonalSaleBanner from "@/components/SeasonalSaleBanner";
-import SplitFeatureBanner from "@/components/SplitFeatureBanner";
-import TestimonialBanner from "@/components/TestimonialBanner";
-import TrendingCarousel from "@/components/TrendingCarousel";
-import FeatureCards from "@/components/FeatureCards";
-import CategoryIconStrip from "@/components/CategoryIconStrip";
-import Pagination from "@/components/Pagination";
-import { getLocale, t } from "@/lib/i18n";
+import SearchBar from "@/components/SearchBar";
+import { queryProducts } from "@/lib/queryProducts";
+import { getPageBuilderConfig } from "@/lib/pageBuilder";
 
-export const revalidate = 60;
+const PAGE_SIZE = 24;
 
-const PER_PAGE = 40;
-
-async function getData(page, filters = {}) {
-  const from = (page - 1) * PER_PAGE;
-  const to = from + PER_PAGE - 1;
-  const { sort, minPrice, maxPrice, minRating } = filters;
-
-  let recentQuery = supabase.from("products").select("*", { count: "exact" }).eq("is_active", true);
-  if (minPrice) recentQuery = recentQuery.gte("price", Number(minPrice));
-  if (maxPrice) recentQuery = recentQuery.lte("price", Number(maxPrice));
-  if (minRating) recentQuery = recentQuery.gte("rating", Number(minRating));
-
-  switch (sort) {
-    case "price_asc":
-      recentQuery = recentQuery.order("price", { ascending: true, nullsFirst: false });
-      break;
-    case "price_desc":
-      recentQuery = recentQuery.order("price", { ascending: false, nullsFirst: false });
-      break;
-    case "rating":
-      recentQuery = recentQuery.order("rating", { ascending: false, nullsFirst: false });
-      break;
-    default:
-      recentQuery = recentQuery.order("created_at", { ascending: false });
-      break;
-  }
-  recentQuery = recentQuery.range(from, to);
-
-  const [{ data: featured }, { data: recent, count }, { data: categories }, { data: banners }, { data: blocks }] =
-    await Promise.all([
-      supabase
-        .from("products")
-        .select("*")
-        .eq("is_active", true)
-        .eq("is_featured", true)
-        .order("created_at", { ascending: false })
-        .limit(8),
-      recentQuery,
-      supabase.from("categories").select("name, slug").order("name"),
-      supabase.from("banners").select("*").eq("is_active", true).order("sort_order"),
-      supabase.from("homepage_blocks").select("*").eq("is_visible", true).order("sort_order"),
-    ]);
-
-  // "discount" sort can't be done in SQL (it's a derived value), so it's
-  // applied in-memory on the page's worth of results we already fetched.
-  const sortedRecent =
-    sort === "discount"
-      ? [...(recent || [])].sort((a, b) => {
-          const da = a.price && a.list_price && a.list_price > a.price ? (a.list_price - a.price) / a.list_price : 0;
-          const db = b.price && b.list_price && b.list_price > b.price ? (b.list_price - b.price) / b.list_price : 0;
-          return db - da;
-        })
-      : recent || [];
-
-  return {
-    featured: featured || [],
-    recent: sortedRecent,
-    totalRecent: count || 0,
-    categories: categories || [],
-    banners: banners || [],
-    // Fallback layout if the Page Builder table is empty/not set up yet —
-    // matches the site's original fixed layout so nothing breaks.
-    blocks: blocks?.length
-      ? blocks
-      : [
-          { id: "hero", type: "hero", config: {} },
-          { id: "featured", type: "featured_products", config: { heading: "Genie's Picks", limit: 8 } },
-          { id: "grid", type: "product_grid", config: { heading: "Freshly Unlocked", withSidebar: true, paginated: true } },
-          { id: "trust", type: "trust_bar", config: {} },
-          { id: "recent", type: "recently_viewed", config: {} },
-          { id: "trending", type: "trending", config: {} },
-          { id: "newsletter", type: "newsletter", config: {} },
-        ],
-  };
+async function getFeaturedProducts() {
+  const { data } = await supabase
+    .from("products")
+    .select("*, categories(name, slug)")
+    .eq("is_active", true)
+    .eq("is_featured", true)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  return data || [];
 }
+
+async function getCategories() {
+  const { data } = await supabase.from("categories").select("*").order("name");
+  return data || [];
+}
+
+const defaultBlocks = [
+  { id: "hero", type: "hero", config: {} },
+  { id: "trust", type: "trust_bar", config: {} },
+  { id: "featured", type: "featured_products", config: { heading: "Genie's Picks" } },
+  { id: "trending", type: "trending_now", config: {} },
+  { id: "grid", type: "product_grid", config: { heading: "Freshly Unlocked", withSidebar: true, paginated: true } },
+  { id: "recently_viewed", type: "recently_viewed", config: {} },
+  { id: "deal_alert", type: "deal_alert_form", config: {} },
+  { id: "disclosure", type: "disclosure", config: {} },
+];
 
 export default async function HomePage({ searchParams }) {
-  const page = Math.max(1, parseInt(searchParams?.page) || 1);
-  const { sort, minPrice, maxPrice, minRating } = searchParams || {};
-  const { featured, recent, totalRecent, categories, banners, blocks } = await getData(page, {
-    sort,
-    minPrice,
-    maxPrice,
-    minRating,
-  });
-  const locale = getLocale();
-  const totalPages = Math.ceil(totalRecent / PER_PAGE);
+  const [config, categories] = await Promise.all([
+    getPageBuilderConfig(),
+    getCategories(),
+  ]);
 
-  const context = { featured, recent, totalRecent, categories, banners, page, totalPages, locale };
+  const blocks = config?.blocks?.length ? config.blocks : defaultBlocks;
 
+  const page = Math.max(1, parseInt(searchParams?.page || "1", 10));
+  const sort = searchParams?.sort || "newest";
+  const categorySlug = searchParams?.category || null;
+  const minPrice = searchParams?.minPrice || null;
+  const maxPrice = searchParams?.maxPrice || null;
+  const minRating = searchParams?.minRating || null;
 
-  return (
-    <div>
-      {blocks.map((block, index) => (
-        <BlockRenderer key={block.id} block={block} context={context} priority={index === 0} />
-      ))}
+  const [featuredProducts, recentProducts, totalRecent] = await Promise.all([
+    getFeaturedProducts(),
+    queryProducts({
+      sort,
+      categorySlug,
+      minPrice,
+      maxPrice,
+      minRating,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    queryProducts({
+      sort,
+      categorySlug,
+      minPrice,
+      maxPrice,
+      minRating,
+      countOnly: true,
+    }),
+  ]);
 
-      <div className="max-w-6xl mx-auto px-4 py-4">
-        <Disclosure compact />
-      </div>
-    </div>
-  );
-}
+  const totalPages = Math.max(1, Math.ceil(totalRecent / PAGE_SIZE));
 
-function BlockRenderer({ block, context, priority = false }) {
-  const { featured, recent, totalRecent, categories, banners, page, totalPages, locale } = context;
-  const config = block.config || {};
+  function renderBlock(block) {
+    const { type, config } = block;
 
-  switch (block.type) {
-    case "hero": {
-      const buttonText = config.buttonText || "Explore Today's Deals";
-      const buttonLink = config.buttonLink || "/deals/latest";
-
-      if (config.style === "sale") {
+    switch (type) {
+      case "hero":
         return (
-          <section className="relative overflow-hidden border-b border-gold/15">
-            {config.backgroundImage ? (
-              <>
-                <div
-                  className="absolute inset-0 bg-cover bg-center"
-                  style={{ backgroundImage: `url(${config.backgroundImage})` }}
-                />
-                <div className="absolute inset-0 bg-ink/60" />
-              </>
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-gold/20 via-ink-lighter to-transparent" />
-            )}
-
-            <div className="relative max-w-4xl mx-auto px-4 py-20 md:py-28 text-center">
-              {config.saleBadge && (
-                <span className="inline-block bg-red-600 text-white text-sm font-bold tracking-wide rounded-full px-5 py-2 mb-6">
-                  {config.saleBadge}
-                </span>
-              )}
-              <h1 className="font-display text-4xl md:text-6xl leading-tight gold-gradient-text">
-                {config.heading || "Unlocking the Best Deals, Every Day"}
-              </h1>
-              <p className="text-cream/80 mt-4 max-w-xl mx-auto text-lg">
-                {config.subheading || t(locale, "heroSubtitle")}
-              </p>
-              <div className="mt-8">
-                <Link
-                  href={buttonLink}
-                  className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-base px-8 py-3.5 rounded-md transition-colors"
-                >
-                  {buttonText} →
-                </Link>
-              </div>
+          <section key={block.id} className="relative overflow-hidden border-b border-gold/15">
+            <div className="absolute inset-0 opacity-40">
+              <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-gold/20 blur-3xl" />
+              <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-gold/10 blur-3xl" />
             </div>
-          </section>
-        );
-      }
-
-      return (
-        <section className="relative overflow-hidden border-b border-gold/15">
-          {config.backgroundImage ? (
-            <>
-              <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${config.backgroundImage})` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-ink/50 via-ink/15 to-transparent" />
-            </>
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-gold/15 via-ink-lighter to-transparent" />
-          )}
-
-          <div className="relative max-w-6xl mx-auto px-4 py-8 md:py-10">
-            <div className="max-w-2xl mb-4">
-              <p className="uppercase tracking-[0.2em] text-xs text-gold/80 mb-3">
-                UAE&apos;s deal-hunting genie
-              </p>
+            <div className="relative max-w-6xl mx-auto px-4 py-16 md:py-24 text-center">
+              <RubTheLamp />
               <h1 className="font-display text-4xl md:text-5xl leading-tight">
                 {config.heading ? (
                   <span className="block gold-gradient-text">{config.heading}</span>
@@ -219,210 +108,155 @@ function BlockRenderer({ block, context, priority = false }) {
                   </>
                 )}
               </h1>
-              <p className="text-cream/70 mt-3 max-w-md">{config.subheading || t(locale, "heroSubtitle")}</p>
-
-              <div className="flex flex-wrap gap-2 mt-4">
-                {["Real Discounts", "Verified Prices", "Smart Shopping"].map((badge) => (
-                  <span
-                    key={badge}
-                    className="text-xs bg-ink-light/80 border border-gold/25 text-cream/80 rounded-full px-3 py-1.5"
-                  >
-                    {badge}
-                  </span>
-                ))}
-              </div>
-
-              <div className="flex flex-wrap gap-3 mt-4">
+              <p className="mt-4 text-cream/70 max-w-xl mx-auto">
+                {config.subheading ||
+                  "Dirham Genie finds genuine Amazon.ae discounts across the UAE, every single day. Real prices, real picks, real savings."}
+              </p>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Link
-                  href={buttonLink}
-                  className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-sm px-5 py-2.5 rounded-md transition-colors"
+                  href="/deals/lightning"
+                  className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-6 py-3 transition-colors"
                 >
-                  {buttonText} →
+                  ⚡ Lightning Deals
                 </Link>
                 <Link
-                  href="/category"
-                  className="inline-flex items-center gap-2 border border-gold/40 text-cream hover:border-gold text-sm font-semibold px-5 py-2.5 rounded-md transition-colors"
+                  href="/deals/biggest-discounts"
+                  className="rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold px-6 py-3 transition-colors"
                 >
-                  ⊞ Top Categories
+                  Biggest Discounts
                 </Link>
               </div>
-
-              {config.backgroundImage && (
-                <div className="mt-3">
-                  <RubTheLamp label={t(locale, "rubTheLamp")} hideLampImage align="start" />
-                </div>
-              )}
             </div>
+          </section>
+        );
 
-            {!config.backgroundImage && (
-              <RubTheLamp label={t(locale, "rubTheLamp")} hideLampImage={false} />
-            )}
-          </div>
-        </section>
-      );
-    }
+      case "trust_bar":
+        return (
+          <section key={block.id} className="border-b border-gold/15">
+            <TrustBar />
+          </section>
+        );
 
-    case "featured_products":
-      if (featured.length === 0 || page !== 1) return null;
-      return (
-        <div className="max-w-6xl mx-auto px-4 pt-8">
-          <section className="mb-10">
-            <h2 className="font-display text-2xl text-gold mb-4">
-              {config.heading || "Genie's Picks"}
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {featured.slice(0, config.limit || 8).map((p) => (
+      case "featured_products": {
+        if (featuredProducts.length === 0) return null;
+        return (
+          <section key={block.id} className="max-w-6xl mx-auto px-4 py-10">
+            <h2 className="font-display text-2xl text-gold mb-6">{config.heading || "Genie's Picks"}</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {featuredProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
           </section>
-        </div>
-      );
+        );
+      }
 
-    case "product_grid": {
-      const grid = (
-        <section>
-          <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
-            <h2 className="font-display text-2xl text-gold">{config.heading || "Freshly Unlocked"}</h2>
-            <p className="text-xs text-cream/40">{totalRecent} deals total</p>
-          </div>
-          <Suspense fallback={null}>
-            <FilterBar />
-          </Suspense>
-          {recent.length === 0 ? (
-            <EmptyState
-              icon="🪔"
-              title="No products yet"
-              subtitle="Once you add products in the admin panel, they'll appear here."
-            />
-          ) : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {recent.map((p) => (
+      case "trending_now":
+        return (
+          <section key={block.id} className="max-w-6xl mx-auto px-4 pb-10">
+            <TrendingNow />
+          </section>
+        );
+
+      case "product_grid": {
+        const grid = (
+          <section>
+            <div className="mb-6 card-surface rounded-lg p-4">
+              <p className="text-sm text-gold font-semibold mb-2">Search our site</p>
+              <SearchBar placeholder="Search products already on Dirham Genie..." mode="site" />
+            </div>
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+              <h2 className="font-display text-2xl text-gold">{config.heading || "Freshly Unlocked"}</h2>
+              <p className="text-xs text-cream/40">{totalRecent} deals total</p>
+            </div>
+            <Suspense fallback={null}>
+              <FilterBar />
+            </Suspense>
+
+            {recentProducts.length === 0 ? (
+              <EmptyState
+                icon="🧞"
+                title="No deals match those filters yet"
+                subtitle="Try adjusting your filters, or check back soon — new deals are added daily."
+                actionLabel="Clear Filters"
+                actionHref="/"
+              />
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {recentProducts.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
               </div>
-              {config.paginated !== false && (
-                <Suspense fallback={null}>
-                  <Pagination currentPage={page} totalPages={totalPages} basePath="/" />
-                </Suspense>
-              )}
-            </>
-          )}
-        </section>
-      );
-
-      return (
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          {config.withSidebar !== false ? (
-            <div className="flex flex-col md:flex-row gap-8">
-              <CategorySidebar categories={categories} />
-              <div className="flex-1 min-w-0">{grid}</div>
-            </div>
-          ) : (
-            grid
-          )}
-        </div>
-      );
-    }
-
-    case "prime_banner":
-      return <PrimePromoBanner config={config} priority={priority} />;
-
-    case "category_banner":
-      return <CategoryBanner config={config} priority={priority} />;
-
-    case "flash_sale_banner":
-      return <FlashSaleBanner config={config} />;
-
-    case "coupon_banner":
-      return <CouponBanner config={config} priority={priority} />;
-
-    case "split_banner":
-      return <SplitBanner config={config} priority={priority} />;
-
-    case "triple_image_banner":
-      return <TripleImageBanner config={config} priority={priority} />;
-
-    case "simple_image_banner":
-      return <SimpleImageBanner config={config} priority={priority} />;
-
-    case "whatsapp_banner":
-      return <WhatsAppBanner config={config} />;
-
-    case "social_follow_banner":
-      return <SocialFollowBanner config={config} />;
-
-    case "announcement_bar":
-      return <AnnouncementBar config={config} />;
-
-    case "brand_spotlight_banner":
-      return <BrandSpotlightBanner config={config} priority={priority} />;
-
-    case "seasonal_sale_banner":
-      return <SeasonalSaleBanner config={config} priority={priority} />;
-
-    case "split_feature_banner":
-      return <SplitFeatureBanner config={config} priority={priority} />;
-
-    case "testimonial_banner":
-      return <TestimonialBanner config={config} />;
-
-    case "trending_carousel":
-      return <TrendingCarousel products={featured} />;
-
-    case "feature_cards":
-      return <FeatureCards config={config} />;
-
-    case "category_strip":
-      return <CategoryIconStrip categories={categories} />;
-
-    case "banners":
-      return <BannerStrip banners={banners.slice(0, config.limit || 3)} />;
-
-    case "trust_bar":
-      return <TrustBar />;
-
-    case "recently_viewed":
-      return <RecentlyViewed />;
-
-    case "trending":
-      return <TrendingNow />;
-
-    case "newsletter":
-      return (
-        <section className="max-w-6xl mx-auto px-4 py-6">
-          <div className="max-w-md">
-            {config.heading && (
-              <h2 className="font-display text-xl text-gold mb-3">{config.heading}</h2>
             )}
-            <DealAlertForm />
+
+            {config.paginated && totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                {page > 1 && (
+                  <Link
+                    href={`/?page=${page - 1}${sort !== "newest" ? `&sort=${sort}` : ""}${categorySlug ? `&category=${categorySlug}` : ""}`}
+                    className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-4 py-2 text-sm"
+                  >
+                    ← Prev
+                  </Link>
+                )}
+                <span className="text-sm text-cream/50 px-3">
+                  Page {page} of {totalPages}
+                </span>
+                {page < totalPages && (
+                  <Link
+                    href={`/?page=${page + 1}${sort !== "newest" ? `&sort=${sort}` : ""}${categorySlug ? `&category=${categorySlug}` : ""}`}
+                    className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-4 py-2 text-sm"
+                  >
+                    Next →
+                  </Link>
+                )}
+              </div>
+            )}
+          </section>
+        );
+
+        if (config.withSidebar) {
+          return (
+            <div key={block.id} className="max-w-6xl mx-auto px-4 py-10">
+              <div className="flex flex-col md:flex-row gap-8">
+                <CategorySidebar categories={categories} activeSlug={categorySlug} />
+                <div className="flex-1 min-w-0">{grid}</div>
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-10">
+            {grid}
           </div>
-        </section>
-      );
+        );
+      }
 
+      case "recently_viewed":
+        return (
+          <section key={block.id} className="max-w-6xl mx-auto px-4 pb-10">
+            <RecentlyViewed />
+          </section>
+        );
 
-    case "text_block":
-      if (!config.heading && !config.body && !config.image) return null;
-      return (
-        <section className="max-w-6xl mx-auto px-4 py-6">
-          {config.image && (
-            <img
-              src={config.image}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-full max-h-64 object-cover rounded-lg mb-3"
-            />
-          )}
-          {config.heading && (
-            <h2 className="font-display text-xl text-gold mb-2">{config.heading}</h2>
-          )}
-          {config.body && <p className="text-cream/70 text-sm whitespace-pre-line">{config.body}</p>}
-        </section>
-      );
+      case "deal_alert_form":
+        return (
+          <section key={block.id} className="max-w-6xl mx-auto px-4 pb-10">
+            <DealAlertForm />
+          </section>
+        );
 
-    default:
-      return null;
+      case "disclosure":
+        return (
+          <section key={block.id} className="max-w-6xl mx-auto px-4 pb-10">
+            <Disclosure />
+          </section>
+        );
+
+      default:
+        return null;
+    }
   }
+
+  return <>{blocks.map(renderBlock)}</>;
 }

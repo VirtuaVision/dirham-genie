@@ -258,5 +258,6 @@ export default async function HomePage({ searchParams }) {
     }
   }
 
+
   return <>{blocks.map(renderBlock)}</>;
 }

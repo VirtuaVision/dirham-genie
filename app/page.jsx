@@ -14,6 +14,26 @@ import TrustBar from "@/components/TrustBar";
 import CategorySidebar from "@/components/CategorySidebar";
 import FilterBar from "@/components/FilterBar";
 import SearchBar from "@/components/SearchBar";
+import PrimePromoBanner from "@/components/PrimePromoBanner";
+import CategoryBanner from "@/components/CategoryBanner";
+import TrendingCarousel from "@/components/TrendingCarousel";
+import FlashSaleBanner from "@/components/FlashSaleBanner";
+import CouponBanner from "@/components/CouponBanner";
+import SplitBanner from "@/components/SplitBanner";
+import TripleImageBanner from "@/components/TripleImageBanner";
+import SimpleImageBanner from "@/components/SimpleImageBanner";
+import WhatsAppBanner from "@/components/WhatsAppBanner";
+import SocialFollowBanner from "@/components/SocialFollowBanner";
+import AnnouncementBar from "@/components/AnnouncementBar";
+import BrandSpotlightBanner from "@/components/BrandSpotlightBanner";
+import SeasonalSaleBanner from "@/components/SeasonalSaleBanner";
+import SplitFeatureBanner from "@/components/SplitFeatureBanner";
+import TestimonialBanner from "@/components/TestimonialBanner";
+import FeatureCards from "@/components/FeatureCards";
+import CategoryIconStrip from "@/components/CategoryIconStrip";
+import BannerStrip from "@/components/BannerStrip";
+import NewsletterForm from "@/components/NewsletterForm";
+import TextBlock from "@/components/TextBlock";
 import { queryProducts } from "@/lib/queryProducts";
 import { getPageBuilderConfig } from "@/lib/pageBuilder";
 
@@ -35,16 +55,34 @@ async function getCategories() {
   return data || [];
 }
 
+async function getBanners(limit = 3) {
+  const { data } = await supabase
+    .from("banners")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .limit(limit);
+  return data || [];
+}
+
 const defaultBlocks = [
   { id: "hero", type: "hero", config: {} },
   { id: "trust", type: "trust_bar", config: {} },
   { id: "featured", type: "featured_products", config: { heading: "Genie's Picks" } },
-  { id: "trending", type: "trending_now", config: {} },
+  { id: "trending", type: "trending", config: {} },
   { id: "grid", type: "product_grid", config: { heading: "Freshly Unlocked", withSidebar: true, paginated: true } },
   { id: "recently_viewed", type: "recently_viewed", config: {} },
   { id: "deal_alert", type: "deal_alert_form", config: {} },
   { id: "disclosure", type: "disclosure", config: {} },
 ];
+
+// Older data may have used "trending_now" for the Trending Now block before
+// this was standardized to match the admin Page Builder's own key ("trending").
+// Normalizing here means both old and new rows render correctly either way.
+function normalizeBlockType(type) {
+  if (type === "trending_now") return "trending";
+  return type;
+}
 
 export default async function HomePage({ searchParams }) {
   const [config, categories] = await Promise.all([
@@ -53,6 +91,7 @@ export default async function HomePage({ searchParams }) {
   ]);
 
   const blocks = config?.blocks?.length ? config.blocks : defaultBlocks;
+  const bannerBlockConfig = blocks.find((b) => normalizeBlockType(b.type) === "banners")?.config;
 
   const page = Math.max(1, parseInt(searchParams?.page || "1", 10));
   const sort = searchParams?.sort || "newest";
@@ -61,7 +100,7 @@ export default async function HomePage({ searchParams }) {
   const maxPrice = searchParams?.maxPrice || null;
   const minRating = searchParams?.minRating || null;
 
-  const [featuredProducts, recentProducts, totalRecent] = await Promise.all([
+  const [featuredProducts, recentProducts, totalRecent, banners] = await Promise.all([
     getFeaturedProducts(),
     queryProducts({
       sort,
@@ -80,12 +119,14 @@ export default async function HomePage({ searchParams }) {
       minRating,
       countOnly: true,
     }),
+    getBanners(bannerBlockConfig?.limit || 3),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(totalRecent / PAGE_SIZE));
 
   function renderBlock(block) {
-    const { type, config } = block;
+    const { config } = block;
+    const type = normalizeBlockType(block.type);
 
     switch (type) {
       case "hero":
@@ -151,11 +192,155 @@ export default async function HomePage({ searchParams }) {
         );
       }
 
-      case "trending_now":
+      case "trending":
         return (
           <section key={block.id} className="max-w-6xl mx-auto px-4 pb-10">
             <TrendingNow />
           </section>
+        );
+
+      case "trending_carousel":
+        if (featuredProducts.length === 0) return null;
+        return (
+          <div key={block.id}>
+            <TrendingCarousel products={featuredProducts} />
+          </div>
+        );
+
+      case "prime_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <PrimePromoBanner config={config} />
+          </div>
+        );
+
+      case "category_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <CategoryBanner config={config} />
+          </div>
+        );
+
+      case "flash_sale_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <FlashSaleBanner config={config} />
+          </div>
+        );
+
+      case "coupon_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <CouponBanner config={config} />
+          </div>
+        );
+
+      case "split_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <SplitBanner config={config} />
+          </div>
+        );
+
+      case "triple_image_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <TripleImageBanner config={config} />
+          </div>
+        );
+
+      case "simple_image_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <SimpleImageBanner config={config} />
+          </div>
+        );
+
+      case "whatsapp_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <WhatsAppBanner config={config} />
+          </div>
+        );
+
+      case "social_follow_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <SocialFollowBanner config={config} />
+          </div>
+        );
+
+      case "announcement_bar":
+        return (
+          <div key={block.id}>
+            <AnnouncementBar config={config} />
+          </div>
+        );
+
+      case "brand_spotlight_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <BrandSpotlightBanner config={config} />
+          </div>
+        );
+
+      case "seasonal_sale_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <SeasonalSaleBanner config={config} />
+          </div>
+        );
+
+      case "split_feature_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <SplitFeatureBanner config={config} />
+          </div>
+        );
+
+      case "testimonial_banner":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <TestimonialBanner config={config} />
+          </div>
+        );
+
+      case "feature_cards":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <FeatureCards config={config} />
+          </div>
+        );
+
+      case "category_strip":
+        return (
+          <div key={block.id} className="max-w-6xl mx-auto px-4 py-6">
+            <CategoryIconStrip categories={categories} />
+          </div>
+        );
+
+      case "banners":
+        return (
+          <div key={block.id}>
+            <BannerStrip banners={banners} />
+          </div>
+        );
+
+      case "newsletter":
+        return (
+          <section key={block.id} className="max-w-6xl mx-auto px-4 pb-10">
+            {config.heading && (
+              <h2 className="font-display text-2xl text-gold mb-6 text-center">{config.heading}</h2>
+            )}
+            <NewsletterForm />
+          </section>
+        );
+
+      case "text_block":
+        return (
+          <div key={block.id}>
+            <TextBlock config={config} />
+          </div>
         );
 
       case "product_grid": {

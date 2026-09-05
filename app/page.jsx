@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import Image from "next/image";
 import ProductCard from "@/components/ProductCard";
 import RubTheLamp from "@/components/RubTheLamp";
 import Disclosure from "@/components/Disclosure";
@@ -129,16 +130,40 @@ export default async function HomePage({ searchParams }) {
     const type = normalizeBlockType(block.type);
 
     switch (type) {
-      case "hero":
+      case "hero": {
+        const isSale = config.style === "sale";
         return (
           <section key={block.id} className="relative overflow-hidden border-b border-gold/15">
-            <div className="absolute inset-0 opacity-40">
-              <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-gold/20 blur-3xl" />
-              <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-gold/10 blur-3xl" />
-            </div>
-            <div className="relative max-w-6xl mx-auto px-4 py-16 md:py-24 text-center">
-              <RubTheLamp />
-              <h1 className="font-display text-4xl md:text-5xl leading-tight">
+            {config.backgroundImage ? (
+              <>
+                <div className="absolute inset-0">
+                  <Image
+                    src={config.backgroundImage}
+                    alt=""
+                    fill
+                    priority
+                    sizes="100vw"
+                    className="object-cover"
+                  />
+                </div>
+                <div className="absolute inset-0 bg-ink/70" />
+              </>
+            ) : (
+              <div className="absolute inset-0 opacity-40">
+                <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-gold/20 blur-3xl" />
+                <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-gold/10 blur-3xl" />
+              </div>
+            )}
+            <div className={`relative max-w-6xl mx-auto px-4 text-center ${isSale ? "py-20 md:py-32" : "py-16 md:py-24"}`}>
+              {!isSale && <RubTheLamp />}
+
+              {isSale && config.saleBadge && (
+                <span className="inline-block mb-4 rounded-full bg-gold text-ink font-bold text-sm md:text-base px-5 py-2 uppercase tracking-wide">
+                  {config.saleBadge}
+                </span>
+              )}
+
+              <h1 className={`font-display leading-tight ${isSale ? "text-5xl md:text-6xl" : "text-4xl md:text-5xl"}`}>
                 {config.heading ? (
                   <span className="block gold-gradient-text">{config.heading}</span>
                 ) : (
@@ -149,27 +174,30 @@ export default async function HomePage({ searchParams }) {
                   </>
                 )}
               </h1>
-              <p className="mt-4 text-cream/70 max-w-xl mx-auto">
+              <p className={`mt-4 max-w-xl mx-auto ${config.backgroundImage ? "text-cream/90" : "text-cream/70"}`}>
                 {config.subheading ||
                   "Dirham Genie finds genuine Amazon.ae discounts across the UAE, every single day. Real prices, real picks, real savings."}
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
                 <Link
-                  href="/deals/lightning"
+                  href={config.buttonLink || "/deals/latest"}
                   className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-6 py-3 transition-colors"
                 >
-                  ⚡ Lightning Deals
+                  {config.buttonText || "⚡ Lightning Deals"}
                 </Link>
-                <Link
-                  href="/deals/biggest-discounts"
-                  className="rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold px-6 py-3 transition-colors"
-                >
-                  Biggest Discounts
-                </Link>
+                {!isSale && (
+                  <Link
+                    href="/deals/biggest-discounts"
+                    className="rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold px-6 py-3 transition-colors"
+                  >
+                    Biggest Discounts
+                  </Link>
+                )}
               </div>
             </div>
           </section>
         );
+      }
 
       case "trust_bar":
         return (

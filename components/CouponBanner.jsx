@@ -34,6 +34,9 @@ export default function CouponBanner({ config = {}, priority = false }) {
               decoding="async"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/15 to-transparent" />
+          </>
+        ) : (
+          <>
             <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink-lighter to-ink" />
             <div className="absolute inset-0 opacity-30">
               <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full bg-gold/20 blur-3xl" />

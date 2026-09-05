@@ -34,13 +34,15 @@ export default function CouponBanner({ config = {}, priority = false }) {
               decoding="async"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/15 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink-lighter to-ink" />
+            <div className="absolute inset-0 opacity-30">
+              <div className="absolute -top-16 -right-16 w-72 h-72 rounded-full bg-gold/20 blur-3xl" />
+            </div>
           </>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-700" />
         )}
         <div className="relative">
-          <h3 className="font-display text-2xl md:text-3xl mb-2 [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]">{config.heading || "Extra Savings Unlocked"}</h3>
-          <p className="text-white/85 text-sm mb-4 max-w-md">
+          <h3 className="font-display text-2xl md:text-3xl mb-2 text-gold [text-shadow:0_2px_8px_rgba(0,0,0,0.5)]">{config.heading || "Extra Savings Unlocked"}</h3>
+          <p className="text-cream/70 text-sm mb-4 max-w-md">
             {config.subheading || "Use this code at checkout on Amazon.ae"}
           </p>
           <div className="flex items-center gap-3 flex-wrap">
@@ -48,14 +50,14 @@ export default function CouponBanner({ config = {}, priority = false }) {
               <button
                 key={code}
                 onClick={() => copyCode(code)}
-                className="bg-white/15 border-2 border-dashed border-white/60 rounded-md px-4 py-2 font-mono font-bold tracking-widest text-lg hover:bg-white/25 transition-colors"
+                className="bg-gold/10 border-2 border-dashed border-gold/50 text-gold rounded-md px-4 py-2 font-mono font-bold tracking-widest text-lg hover:bg-gold/20 transition-colors"
               >
                 {copiedCode === code ? "Copied!" : code}
               </button>
             ))}
             <Link
               href={config.link || "/deals/latest"}
-              className="inline-flex items-center gap-2 bg-white text-teal-700 font-semibold text-sm px-4 py-2 rounded-md hover:bg-teal-50 transition-colors"
+              className="inline-flex items-center gap-2 bg-gold hover:bg-gold-bright text-ink font-semibold text-sm px-4 py-2 rounded-md transition-colors"
             >
               {config.buttonText || "Shop Now"} →
             </Link>

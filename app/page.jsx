@@ -85,6 +85,27 @@ function normalizeBlockType(type) {
   return type;
 }
 
+// Builds a compact page-number list like: 1 … 4 5 [6] 7 8 … 42
+// so buyers can jump straight to a page instead of only Prev/Next.
+function getPageNumbers(current, total) {
+  const pages = [];
+  const add = (p) => pages.push(p);
+  const addGapIfNeeded = () => {
+    if (pages[pages.length - 1] !== "...") add("...");
+  };
+
+  add(1);
+  for (let p = current - 1; p <= current + 1; p++) {
+    if (p <= 1 || p >= total) continue;
+    if (p === current - 1 && p > 2) addGapIfNeeded();
+    add(p);
+  }
+  if (current + 1 < total - 1) addGapIfNeeded();
+  if (total > 1) add(total);
+
+  return pages;
+}
+
 export default async function HomePage({ searchParams }) {
   const [config, categories] = await Promise.all([
     getPageBuilderConfig(),
@@ -211,7 +232,7 @@ export default async function HomePage({ searchParams }) {
         return (
           <section key={block.id} className="max-w-6xl mx-auto px-4 py-10">
             <h2 className="font-display text-2xl text-gold mb-6">{config.heading || "Genie's Picks"}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {featuredProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
@@ -395,7 +416,7 @@ export default async function HomePage({ searchParams }) {
                 actionHref="/"
               />
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {recentProducts.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
@@ -403,22 +424,38 @@ export default async function HomePage({ searchParams }) {
             )}
 
             {config.paginated && totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
+              <div className="flex items-center justify-center gap-2 mt-8 flex-wrap">
                 {page > 1 && (
                   <Link
                     href={`/?page=${page - 1}${sort !== "newest" ? `&sort=${sort}` : ""}${categorySlug ? `&category=${categorySlug}` : ""}`}
-                    className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-4 py-2 text-sm"
+                    className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-3 py-2 text-sm"
                   >
                     ← Prev
                   </Link>
                 )}
-                <span className="text-sm text-cream/50 px-3">
-                  Page {page} of {totalPages}
-                </span>
+                {getPageNumbers(page, totalPages).map((p, i) =>
+                  p === "..." ? (
+                    <span key={`gap-${i}`} className="text-cream/40 px-1 text-sm">
+                      …
+                    </span>
+                  ) : (
+                    <Link
+                      key={p}
+                      href={`/?page=${p}${sort !== "newest" ? `&sort=${sort}` : ""}${categorySlug ? `&category=${categorySlug}` : ""}`}
+                      className={
+                        p === page
+                          ? "rounded-md bg-gold text-ink font-semibold px-3 py-2 text-sm min-w-[2.5rem] text-center"
+                          : "rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-3 py-2 text-sm min-w-[2.5rem] text-center"
+                      }
+                    >
+                      {p}
+                    </Link>
+                  )
+                )}
                 {page < totalPages && (
                   <Link
                     href={`/?page=${page + 1}${sort !== "newest" ? `&sort=${sort}` : ""}${categorySlug ? `&category=${categorySlug}` : ""}`}
-                    className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-4 py-2 text-sm"
+                    className="rounded-md border border-gold/30 text-cream/80 hover:border-gold hover:text-gold px-3 py-2 text-sm"
                   >
                     Next →
                   </Link>

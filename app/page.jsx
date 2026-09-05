@@ -146,7 +146,7 @@ export default async function HomePage({ searchParams }) {
                     className="object-cover"
                   />
                 </div>
-                <div className="absolute inset-0 bg-ink/70" />
+                <div className="absolute inset-0 bg-ink/80" />
               </>
             ) : (
               <div className="absolute inset-0 opacity-40">
@@ -154,7 +154,7 @@ export default async function HomePage({ searchParams }) {
                 <div className="absolute -bottom-24 -right-24 w-96 h-96 rounded-full bg-gold/10 blur-3xl" />
               </div>
             )}
-            <div className={`relative max-w-6xl mx-auto px-4 text-center ${isSale ? "py-20 md:py-32" : "py-16 md:py-24"}`}>
+            <div className={`relative max-w-6xl mx-auto px-4 text-center ${isSale ? "py-14 md:py-20" : "py-10 md:py-14"}`}>
               {!isSale && <RubTheLamp />}
 
               {isSale && config.saleBadge && (

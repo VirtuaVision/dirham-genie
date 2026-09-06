@@ -282,10 +282,10 @@ export default function NewProductPage() {
       if (!res.ok) throw new Error(json.error);
       setSavedAsins((prev) => new Set(prev).add(item.asin));
       setResultSocialResults((prev) => ({ ...prev, [item.asin]: json.socialResults || {} }));
-      return json.product;
+      return { product: json.product, error: null };
     } catch (err) {
       setSearchError(err.message);
-      return null;
+      return { product: null, error: err.message };
     } finally {
       setSavingAsin(null);
     }
@@ -296,18 +296,25 @@ export default function NewProductPage() {
     setSearchError(null);
     try {
       let productId = null;
+      let specificError = null;
 
       if (savedAsins.has(item.asin)) {
-        const saved = await addResultToWebsiteIfMissing(item);
-        productId = saved;
+        const result = await addResultToWebsiteIfMissing(item);
+        productId = result.id;
+        specificError = result.error;
       } else {
-        const product = await addResultToWebsite(item);
-        productId = product?.id || null;
+        const result = await addResultToWebsite(item);
+        productId = result.product?.id || null;
+        specificError = result.error;
       }
 
       if (productId) {
         router.push(`/admin/social-post?product=${productId}`);
-      } else {
+      } else if (!specificError) {
+        // Only shown if nothing else already explained the failure —
+        // addResultToWebsite/addResultToWebsiteIfMissing already surface
+        // the real reason (duplicate ASIN, validation error, etc.) via
+        // setSearchError when there is one.
         setSearchError("Couldn't create the post — try Add to Website first.");
       }
     } finally {
@@ -320,12 +327,12 @@ export default function NewProductPage() {
       const res = await fetch("/api/products");
       const json = await res.json();
       const found = (json.products || []).find((p) => p.asin === item.asin);
-      if (found) return found.id;
+      if (found) return { id: found.id, error: null };
     } catch {
       // fall through to re-adding below
     }
-    const product = await addResultToWebsite(item);
-    return product?.id || null;
+    const result = await addResultToWebsite(item);
+    return { id: result.product?.id || null, error: result.error };
   }
 
   return (

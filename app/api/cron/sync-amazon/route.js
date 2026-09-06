@@ -8,10 +8,16 @@ import slugify from "slugify";
 
 // The pacing added below (to avoid Amazon's Creators API rate limit) adds
 // real wall-clock time to this run, so give it plenty of headroom — this
-// endpoint checks and discovers products, which is slow. 300s is the max
-// on Vercel's Pro plan; on Hobby it'll be clamped to Hobby's own cap (60s)
-// automatically, so this is safe to set high regardless of plan.
+// endpoint checks and discovers products, which is slow. 300s is the hard
+// ceiling on Vercel's Hobby plan (no way to raise it further without
+// upgrading), so RUN_DEADLINE_MS below keeps real work well under that
+// ceiling and lets the code exit cleanly instead of getting killed mid-run.
 export const maxDuration = 300;
+const RUN_DEADLINE_MS = 250 * 1000;
+
+function timeLeft(startedAt) {
+  return RUN_DEADLINE_MS - (Date.now() - startedAt);
+}
 
 const NEW_PRODUCTS_PER_CATEGORY = 4;
 
@@ -240,10 +246,11 @@ async function insertDiscoveredProduct(item, categoryId) {
 
 const MAX_MEGA_DEALS_PER_DAY = 6;
 
-async function discoverNewDeals() {
+async function discoverNewDeals(startedAt) {
   let discovered = 0;
   let megaDealsFound = 0;
   let discoveryErrors = 0;
+  let stoppedEarly = false;
   const details = [];
 
   const { data: settingsRows } = await supabaseAdmin
@@ -265,6 +272,7 @@ async function discoverNewDeals() {
       discovered: 0,
       megaDealsFound: 0,
       discoveryErrors: 0,
+      stoppedEarly: false,
       details: ["Auto-discovery is paused (toggle it back on in Sync Logs to resume)."],
     };
   }
@@ -326,6 +334,12 @@ async function discoverNewDeals() {
   let megaDealsToday = 0;
 
   for (const category of regularCategories) {
+    if (timeLeft(startedAt) < 15000) {
+      stoppedEarly = true;
+      details.push(`Stopped discovery early to stay under the time limit — resumes with remaining categories next run.`);
+      break;
+    }
+
     let todaysKeywords = keywordsForCategoryToday(category);
 
     // Click-performance bonus: today's top-clicked category gets one extra
@@ -408,6 +422,11 @@ async function discoverNewDeals() {
   // any category, so this works even for things that don't map neatly to
   // an existing category. Landed in Genie's Choice as a catch-all.
   for (const keyword of customKeywords) {
+    if (timeLeft(startedAt) < 15000) {
+      stoppedEarly = true;
+      details.push(`Stopped custom keyword search early to stay under the time limit.`);
+      break;
+    }
     try {
       await sleep(1000);
       const results = await searchWithPacing(keyword, SEARCH_PAGE);
@@ -433,7 +452,7 @@ async function discoverNewDeals() {
     }
   }
 
-  return { discovered, megaDealsFound, discoveryErrors, details };
+  return { discovered, megaDealsFound, discoveryErrors, stoppedEarly, details };
 }
 
 async function demoteStaleMegaDeals() {
@@ -462,23 +481,39 @@ async function demoteStaleMegaDeals() {
 }
 
 async function runSync() {
+  const startedAt = Date.now();
   let checked = 0;
   let updated = 0;
   let errors = 0;
   let deactivated = 0;
+  let priceRefreshStoppedEarly = false;
   const errorMessages = [];
 
-  const { data: products } = await supabaseAdmin
+  // Oldest-checked-first (never-synced products first): if a run gets cut
+  // short by the time budget, tomorrow's run naturally continues with
+  // whatever's still overdue instead of always re-checking the same first
+  // page and never reaching the rest of the catalog.
+  const { data: products, count: totalActiveCount } = await supabaseAdmin
     .from("products")
-    .select("id, asin, price, title, sync_miss_count")
+    .select("id, asin, price, title, sync_miss_count", { count: "exact" })
     .eq("source", "amazon_api")
     .eq("is_active", true)
-    .not("asin", "is", null);
+    .not("asin", "is", null)
+    .order("last_synced_at", { ascending: true, nullsFirst: true });
 
   const byAsin = new Map((products || []).map((p) => [p.asin, p]));
   const asinBatches = chunkArray([...byAsin.keys()], 10);
 
   for (const batch of asinBatches) {
+    // Reserve time for discovery + cleanup + writing the log entry below,
+    // rather than spending the entire budget on price refresh alone.
+    if (timeLeft(startedAt) < 100000) {
+      priceRefreshStoppedEarly = true;
+      errorMessages.push(
+        `Stopped price refresh early to stay under the time limit — checked ${checked} of ${totalActiveCount ?? "?"} products (oldest-checked-first, so this continues with the rest next run).`
+      );
+      break;
+    }
     checked += batch.length;
     try {
       const freshItems = await fetchProductsByAsins(batch);
@@ -546,7 +581,17 @@ async function runSync() {
 
   const demoted = await demoteStaleMegaDeals();
 
-  const { discovered, megaDealsFound, discoveryErrors, details: discoveryDetails } = await discoverNewDeals();
+  // If price refresh already used up the reserved time, skip discovery
+  // this run rather than risk running past the deadline — it'll get its
+  // turn once price refresh isn't running long.
+  let discovered = 0, megaDealsFound = 0, discoveryErrors = 0, discoveryStoppedEarly = false;
+  let discoveryDetails = [];
+  if (timeLeft(startedAt) > 15000) {
+    ({ discovered, megaDealsFound, discoveryErrors, stoppedEarly: discoveryStoppedEarly, details: discoveryDetails } =
+      await discoverNewDeals(startedAt));
+  } else {
+    discoveryDetails = ["Skipped discovery this run — price refresh used the full time budget."];
+  }
   errorMessages.push(...discoveryDetails);
 
   const nowIso = new Date().toISOString();
@@ -562,13 +607,16 @@ async function runSync() {
     .lt("expires_at", nowIso)
     .eq("is_active", true);
 
+  const stoppedEarly = priceRefreshStoppedEarly || discoveryStoppedEarly;
   const summary = {
     products_checked: checked,
     products_updated: updated,
     new_products_discovered: discovered,
     errors: errors + discoveryErrors,
     details:
-      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals). ${demoted} product(s) moved out of Mega Deals as they no longer qualify. ${deactivated} product(s) auto-deactivated as delisted.\n` +
+      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals). ${demoted} product(s) moved out of Mega Deals as they no longer qualify. ${deactivated} product(s) auto-deactivated as delisted.` +
+      (stoppedEarly ? ` ⏱ Run stopped early to stay under the time limit — continues automatically next run.` : ``) +
+      `\n` +
       errorMessages.join("\n") || null,
   };
 
@@ -600,12 +648,31 @@ async function runSync() {
   return summary;
 }
 
+async function runSyncWithGuaranteedLog() {
+  try {
+    return await runSync();
+  } catch (err) {
+    // Whatever failed happened before runSync's own summary/log could be
+    // written — write a minimal entry now so this run is still visible in
+    // Sync Logs instead of leaving a silent gap.
+    const emergency = {
+      products_checked: 0,
+      products_updated: 0,
+      new_products_discovered: 0,
+      errors: 1,
+      details: `Sync run failed before completing: ${err.message}`,
+    };
+    await supabaseAdmin.from("sync_logs").insert(emergency).catch(() => {});
+    return emergency;
+  }
+}
+
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");
   if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const summary = await runSync();
+  const summary = await runSyncWithGuaranteedLog();
   return NextResponse.json(summary);
 }
 
@@ -613,6 +680,6 @@ export async function POST() {
   if (!(await isAdminLoggedIn())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const summary = await runSync();
+  const summary = await runSyncWithGuaranteedLog();
   return NextResponse.json(summary);
 }

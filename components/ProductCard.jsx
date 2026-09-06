@@ -8,6 +8,7 @@ import { timeAgo } from "@/lib/timeAgo";
 import CountdownTimer from "@/components/CountdownTimer";
 import StarRating from "@/components/StarRating";
 import { useIsAdmin } from "@/components/AdminStatusProvider";
+import SocialPostModal from "@/components/SocialPostModal";
 
 // Amazon image URLs carry their resolution in the filename itself
 // (e.g. "._SL500_.jpg"). Bumping that number gets a noticeably sharper
@@ -22,9 +23,8 @@ export default function ProductCard({ product }) {
   const checked = timeAgo(product.last_synced_at || product.updated_at);
   const hiResImage = upscaleAmazonImage(product.image_url);
   const isAdmin = useIsAdmin();
-  const [posting, setPosting] = useState(false);
-  const [postResult, setPostResult] = useState(null);
   const [copiedCoupon, setCopiedCoupon] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
 
   function handleLampClick(e) {
     e.preventDefault();
@@ -46,41 +46,14 @@ export default function ProductCard({ product }) {
     }).catch(() => {});
   }
 
-  async function handleQuickPost(e) {
+  function handleOpenPostModal(e) {
     e.preventDefault();
     e.stopPropagation();
-    setPosting(true);
-    setPostResult(null);
-    try {
-      const res = await fetch("/api/social/quick-post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: product.id }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      const { results } = json;
-      const posted = [];
-      const failedDetails = [];
-      for (const [platform, r] of Object.entries(results || {})) {
-        if (r.ok) posted.push(platform);
-        else if (!r.skipped) failedDetails.push(`${platform} (${r.error || "unknown error"})`);
-      }
-      if (posted.length === 0) {
-        setPostResult({ ok: false, text: "Nothing posted — check platform setup in admin." });
-      } else if (failedDetails.length === 0) {
-        setPostResult({ ok: true, text: `Posted to ${posted.join(", ")} ✅` });
-      } else {
-        setPostResult({ ok: true, text: `Posted to ${posted.join(", ")}. Failed: ${failedDetails.join("; ")}` });
-      }
-    } catch (err) {
-      setPostResult({ ok: false, text: err.message });
-    } finally {
-      setPosting(false);
-    }
+    setShowPostModal(true);
   }
 
   return (
+    <>
     <div className="card-surface rounded-lg overflow-hidden flex flex-col group border-2 border-[#C2410C]/40 hover:border-[#C2410C]/70 transition-colors">
     <Link
       href={`/product/${product.slug}`}
@@ -207,22 +180,18 @@ export default function ProductCard({ product }) {
           See Product Details
         </Link>
         {isAdmin && (
-          <>
-            <button
-              onClick={handleQuickPost}
-              disabled={posting}
-              className="block w-full text-center rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold text-xs py-2 transition-colors disabled:opacity-60"
-            >
-              {posting ? "Posting..." : "📤 Post to Facebook/WhatsApp"}
-            </button>
-            {postResult && (
-              <p className={`text-[11px] text-center font-medium ${postResult.ok ? "text-deal-green" : "text-red-400"}`}>
-                {postResult.text}
-              </p>
-            )}
-          </>
+          <button
+            onClick={handleOpenPostModal}
+            className="block w-full text-center rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold text-xs py-2 transition-colors"
+          >
+            📤 Post to Social Media
+          </button>
         )}
       </div>
     </div>
+    {showPostModal && (
+      <SocialPostModal product={product} onClose={() => setShowPostModal(false)} />
+    )}
+    </>
   );
 }

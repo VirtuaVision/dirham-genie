@@ -33,4 +33,5 @@ export function buildSingleProductCaption(product, includeSocialLinks = true) {
     `As an Amazon Associate, Dirham Genie earns from qualifying purchases.`
   );
 
+
 }

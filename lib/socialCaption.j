@@ -32,4 +32,5 @@ export function buildSingleProductCaption(product, includeSocialLinks = true) {
     `#DirhamGenie #UAEDeals #AmazonUAE #DubaiDeals #DealsOfTheDay\n\n` +
     `As an Amazon Associate, Dirham Genie earns from qualifying purchases.`
   );
+
 }

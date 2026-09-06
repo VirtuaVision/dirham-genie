@@ -10,7 +10,7 @@ export async function GET(request) {
   }
 
   try {
-    const processed = await processDueQueuedPosts(10);
+    const processed = await processDueQueuedPosts(4);
     return NextResponse.json({ processed: processed.length, results: processed });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

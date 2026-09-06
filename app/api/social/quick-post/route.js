@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
-import { autoPostNewProduct } from "@/lib/socialPost";
+import { quickPostFacebookAndWhatsApp } from "@/lib/socialPost";
 
-export const maxDuration = 60;
+export const maxDuration = 45;
 
 export async function POST(request) {
   if (!(await isAdminLoggedIn())) {
@@ -25,6 +25,6 @@ export async function POST(request) {
     return NextResponse.json({ error: "Product not found." }, { status: 404 });
   }
 
-  const results = await autoPostNewProduct(product, false);
+  const results = await quickPostFacebookAndWhatsApp(product);
   return NextResponse.json({ results });
 }

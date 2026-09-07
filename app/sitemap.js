@@ -6,7 +6,7 @@ export default async function sitemap() {
   const staticPages = [
     "", "about", "disclaimer", "privacy", "terms", "cookie-policy", "dmca",
     "contact", "blog", "coupons", "deals/latest", "deals/lightning",
-    "deals/biggest-discounts", "wishlist", "compare",
+    "deals/biggest-discounts", "wishlist", "compare", "creators-choice",
   ].map((path) => ({
     url: `${base}/${path}`,
     lastModified: new Date(),

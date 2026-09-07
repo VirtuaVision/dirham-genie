@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 
 const emptyForm = {
   title: "",
@@ -603,7 +602,7 @@ export default function NewProductPage() {
       <form onSubmit={handleSave} className="card-surface rounded-lg p-5 space-y-4">
         {form.image_url && (
           <div className="relative w-24 h-24 bg-white/5 rounded">
-            <Image src={form.image_url} alt="" fill sizes="96px" className="object-contain p-2" />
+            <img src={form.image_url} alt="" className="w-full h-full object-contain p-2" />
           </div>
         )}
 
@@ -615,7 +614,7 @@ export default function NewProductPage() {
             <div className="flex flex-wrap gap-2">
               {form.additional_images.map((url, i) => (
                 <div key={i} className="relative w-16 h-16 bg-white/5 rounded border border-gold/20">
-                  <Image src={url} alt="" fill sizes="64px" className="object-contain p-1" />
+                  <img src={url} alt="" className="w-full h-full object-contain p-1" />
                 </div>
               ))}
             </div>

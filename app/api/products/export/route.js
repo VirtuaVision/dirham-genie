@@ -13,7 +13,7 @@ function csvEscape(value) {
 const COLUMNS = [
   "title", "brand", "asin", "price", "list_price", "currency", "coupon_code",
   "affiliate_url", "image_url", "rating", "review_count", "is_active",
-  "is_featured", "is_lightning_deal", "source", "created_at",
+  "is_featured", "is_creators_choice", "is_lightning_deal", "source", "created_at",
 ];
 
 export async function GET() {

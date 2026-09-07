@@ -84,6 +84,15 @@ export default function ProductCard({ product }) {
             Best Seller
           </span>
         )}
+        {product.is_creators_choice && (
+          <span
+            className={`absolute right-2 bg-violet-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide ${
+              product.is_featured ? "top-9" : "top-2"
+            }`}
+          >
+            ✨ Creators Choice
+          </span>
+        )}
         {product.in_stock === false && (
           <div className="absolute inset-0 bg-ink/70 flex items-center justify-center">
             <span className="bg-ink text-cream text-xs font-semibold px-3 py-1.5 rounded border border-gold/30">

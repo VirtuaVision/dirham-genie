@@ -15,6 +15,7 @@ const emptyForm = {
   affiliate_url: "",
   category_id: "",
   is_featured: false,
+  is_creators_choice: false,
   is_active: true,
   source: "manual",
 };
@@ -772,6 +773,14 @@ export default function NewProductPage() {
               onChange={(e) => update("is_featured", e.target.checked)}
             />
             Featured on homepage
+          </label>
+          <label className="flex items-center gap-2 text-sm text-cream/70">
+            <input
+              type="checkbox"
+              checked={form.is_creators_choice}
+              onChange={(e) => update("is_creators_choice", e.target.checked)}
+            />
+            ✨ Creators Choice
           </label>
           <label className="flex items-center gap-2 text-sm text-cream/70">
             <input

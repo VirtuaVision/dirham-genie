@@ -374,6 +374,14 @@ export default function AdminProductsPage() {
                   >
                     {p.is_featured ? "Featured" : "Not featured"}
                   </button>
+                  <button
+                    onClick={() => toggleField(p, "is_creators_choice")}
+                    className={`px-2 py-1 rounded ${
+                      p.is_creators_choice ? "bg-violet-500/20 text-violet-300" : "bg-white/5 text-cream/40"
+                    }`}
+                  >
+                    {p.is_creators_choice ? "✨ Creators Choice" : "Not in Creators Choice"}
+                  </button>
                   <Link
                     href={`/admin/products/${p.id}/edit`}
                     className="px-2 py-1 rounded bg-white/5 text-cream/70 hover:text-gold"

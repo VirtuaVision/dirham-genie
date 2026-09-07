@@ -51,6 +51,17 @@ async function getFeaturedProducts() {
   return data || [];
 }
 
+async function getCreatorsChoiceProducts() {
+  const { data } = await supabase
+    .from("products")
+    .select("*, categories(name, slug)")
+    .eq("is_active", true)
+    .eq("is_creators_choice", true)
+    .order("created_at", { ascending: false })
+    .limit(8);
+  return data || [];
+}
+
 async function getCategories() {
   const { data } = await supabase.from("categories").select("*").order("name");
   return data || [];
@@ -70,6 +81,7 @@ const defaultBlocks = [
   { id: "hero", type: "hero", config: {} },
   { id: "trust", type: "trust_bar", config: {} },
   { id: "featured", type: "featured_products", config: { heading: "Genie's Picks" } },
+  { id: "creators_choice", type: "creators_choice", config: { heading: "✨ Creators Choice" } },
   { id: "trending", type: "trending", config: {} },
   { id: "grid", type: "product_grid", config: { heading: "Freshly Unlocked", withSidebar: true, paginated: true } },
   { id: "recently_viewed", type: "recently_viewed", config: {} },
@@ -122,8 +134,9 @@ export default async function HomePage({ searchParams }) {
   const maxPrice = searchParams?.maxPrice || null;
   const minRating = searchParams?.minRating || null;
 
-  const [featuredProducts, recentProducts, totalRecent, banners] = await Promise.all([
+  const [featuredProducts, creatorsChoiceProducts, recentProducts, totalRecent, banners] = await Promise.all([
     getFeaturedProducts(),
+    getCreatorsChoiceProducts(),
     queryProducts({
       sort,
       categorySlug,
@@ -234,6 +247,25 @@ export default async function HomePage({ searchParams }) {
             <h2 className="font-display text-2xl text-gold mb-6">{config.heading || "Genie's Picks"}</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {featuredProducts.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        );
+      }
+
+      case "creators_choice": {
+        if (creatorsChoiceProducts.length === 0) return null;
+        return (
+          <section key={block.id} className="max-w-6xl mx-auto px-4 py-10">
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+              <h2 className="font-display text-2xl text-gold">{config.heading || "✨ Creators Choice"}</h2>
+              <Link href="/creators-choice" className="text-sm font-semibold text-gold hover:underline">
+                See all →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {creatorsChoiceProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>

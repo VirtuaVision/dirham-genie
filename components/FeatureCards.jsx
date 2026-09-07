@@ -1,3 +1,4 @@
+
 // Save as: components/FeatureCards.jsx
 
 import Link from "next/link";
@@ -12,10 +13,10 @@ const CARDS = [
     iconBg: "bg-emerald-500 text-white",
   },
   {
-    icon: "🗂️",
-    title: "Top Categories",
-    subtitle: "Shop from your favorite categories",
-    href: "/category",
+    icon: "✨",
+    title: "Creators Choice",
+    subtitle: "Hand-picked by our creators",
+    href: "/creators-choice",
     accent: "bg-violet-500/10 border-violet-500/30",
     iconBg: "bg-violet-500 text-white",
   },

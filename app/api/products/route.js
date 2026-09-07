@@ -31,7 +31,7 @@ export async function GET(request) {
   const idsOnly = params.get("idsOnly") === "true";
 
   const FIELD_SETS = {
-    list: "id, title, slug, image_url, price, list_price, source, is_active, is_featured, categories(name, slug)",
+    list: "id, title, slug, image_url, price, list_price, source, is_active, is_featured, is_creators_choice, categories(name, slug)",
     social: "id, title, slug, image_url, additional_images, price, list_price, affiliate_url, is_active",
   };
 
@@ -118,6 +118,7 @@ export async function POST(request) {
       category_id: categoryId,
       source: body.source || "manual",
       is_featured: !!body.is_featured,
+      is_creators_choice: !!body.is_creators_choice,
       is_active: body.is_active !== false,
       is_lightning_deal: !!body.is_lightning_deal,
       deal_expires_at: body.deal_expires_at || null,

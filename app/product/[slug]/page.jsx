@@ -14,6 +14,7 @@ import CountdownTimer from "@/components/CountdownTimer";
 import RecordView from "@/components/RecordView";
 import StarRating from "@/components/StarRating";
 import ProductGallery from "@/components/ProductGallery";
+import CouponCode from "@/components/CouponCode";
 
 export const revalidate = 60;
 
@@ -213,14 +214,7 @@ export default async function ProductPage({ params }) {
           </div>
 
           {product.coupon_code && (
-            <p className="mt-2 text-sm">
-              <span className="font-mono bg-gold/15 text-gold px-2 py-1 rounded border border-dashed border-gold/40">
-                {product.coupon_code}
-              </span>
-              {product.coupon_details && (
-                <span className="text-cream/50 text-xs ml-2">{product.coupon_details}</span>
-              )}
-            </p>
+            <CouponCode code={product.coupon_code} details={product.coupon_details} />
           )}
 
           <p className="text-xs text-cream/40 mt-1">

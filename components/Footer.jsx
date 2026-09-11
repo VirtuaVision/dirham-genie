@@ -53,7 +53,7 @@ export default async function Footer() {
             <div className="text-gold font-semibold mb-2">Legal</div>
             <ul className="space-y-1 text-cream/70">
               <li><Link href="/about" className="hover:text-gold">About Us</Link></li>
-              <li><Link href="/disclaimer" className="hover:text-gold">Affiliate Disclaimer</Link></li>
+              <li><Link href="/disclaimer" className="hover:text-gold">Affiliate & Content Disclosures</Link></li>
               <li><Link href="/privacy" className="hover:text-gold">Privacy Policy</Link></li>
               <li><Link href="/cookie-policy" className="hover:text-gold">Cookie Policy</Link></li>
               <li><Link href="/terms" className="hover:text-gold">Terms of Use</Link></li>

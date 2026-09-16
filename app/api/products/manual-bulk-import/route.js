@@ -60,6 +60,8 @@ export async function POST(request) {
       list_price: toNumberOrNull(row.list_price),
       image_url: (row.image_url || "").trim() || null,
       brand: (row.brand || "").trim() || null,
+      coupon_code: (row.coupon_code || "").trim() || null,
+      coupon_details: (row.coupon_details || "").trim() || null,
     });
   }
 
@@ -67,7 +69,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         error:
-          "None of the rows had both a title and an affiliate_url — those two are required. Expected format: title,price,list_price,image_url,affiliate_url,brand",
+          "None of the rows had both a title and an affiliate_url — those two are required. Expected format: title,price,list_price,image_url,affiliate_url,brand,coupon_code,coupon_details",
       },
       { status: 400 }
     );
@@ -97,6 +99,8 @@ export async function POST(request) {
         list_price: row.list_price,
         affiliate_url: row.affiliate_url,
         brand: row.brand,
+        coupon_code: row.coupon_code,
+        coupon_details: row.coupon_details,
         category_id: category_id || null,
         source: "manual",
         is_active: true,

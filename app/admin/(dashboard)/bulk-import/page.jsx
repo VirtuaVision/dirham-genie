@@ -14,7 +14,7 @@ function parseCsv(text) {
   const dataLines = looksLikeHeader ? lines.slice(1) : lines;
   const columns = looksLikeHeader
     ? header
-    : ["title", "price", "list_price", "image_url", "affiliate_url", "brand"];
+    : ["title", "price", "list_price", "image_url", "affiliate_url", "brand", "coupon_code", "coupon_details"];
 
   return dataLines.map((line) => {
     const cells = splitLine(line);
@@ -140,7 +140,7 @@ export default function BulkImportPage() {
 
       <p className="text-cream/50 text-sm mb-6">
         {mode === "manual"
-          ? "Upload a CSV or paste rows with: title, price, list_price, image_url, affiliate_url, brand (one product per line, comma-separated). A header row is optional."
+          ? "Upload a CSV or paste rows with: title, price, list_price, image_url, affiliate_url, brand, coupon_code, coupon_details (one product per line, comma-separated). Leave the last two blank if there's no coupon. A header row is optional."
           : "Upload a CSV/text file, or paste a list, with one ASIN or Amazon.ae product link per line."}
       </p>
 
@@ -153,7 +153,7 @@ export default function BulkImportPage() {
         <div>
           <label className="block text-xs text-cream/60 mb-1">
             {mode === "manual"
-              ? "Or paste rows: title,price,list_price,image_url,affiliate_url,brand"
+              ? "Or paste rows: title,price,list_price,image_url,affiliate_url,brand,coupon_code,coupon_details"
               : "Or paste ASINs / Amazon.ae links, one per line"}
           </label>
           <textarea
@@ -162,7 +162,7 @@ export default function BulkImportPage() {
             onChange={(e) => setText(e.target.value)}
             placeholder={
               mode === "manual"
-                ? "Wireless Earbuds,99.00,149.00,https://example.com/img.jpg,https://www.amazon.ae/dp/B0XXXXX?tag=yourtag-21,SoundCo"
+                ? "Wireless Earbuds,99.00,149.00,https://example.com/img.jpg,https://www.amazon.ae/dp/B0XXXXX?tag=yourtag-21,SoundCo,SAVE20,Applies at checkout"
                 : "B0D1XXXXXX\nhttps://www.amazon.ae/dp/B0D2XXXXXX"
             }
             className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none font-mono"

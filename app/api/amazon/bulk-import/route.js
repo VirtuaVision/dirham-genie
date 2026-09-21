@@ -33,7 +33,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { lines, category_id } = await request.json();
+  const { lines, category_id, coupon_code, coupon_details } = await request.json();
   if (!Array.isArray(lines) || lines.length === 0) {
     return NextResponse.json({ error: "No ASINs or links provided." }, { status: 400 });
   }
@@ -78,6 +78,8 @@ export async function POST(request) {
             asin: item.asin,
             affiliate_url: item.affiliate_url,
             category_id: category_id || null,
+            coupon_code: coupon_code || null,
+            coupon_details: coupon_details || null,
             source: "amazon_api",
             is_active: true,
             in_stock: item.in_stock !== false,

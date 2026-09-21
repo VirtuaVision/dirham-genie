@@ -34,6 +34,9 @@ export default function BulkImportPage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [previewRows, setPreviewRows] = useState(null); // null = not previewed yet
+  const [batchCouponCode, setBatchCouponCode] = useState("");
+  const [batchCouponDetails, setBatchCouponDetails] = useState("");
 
   useEffect(() => {
     fetch("/api/categories")
@@ -61,12 +64,38 @@ export default function BulkImportPage() {
     reader.readAsText(file);
   }
 
+  function handleBuildPreview() {
+    setError(null);
+    setResult(null);
+    const rows = parseCsv(text);
+    if (rows.length === 0) {
+      setError("Nothing to preview — check your file/paste.");
+      return;
+    }
+    setPreviewRows(
+      rows.map((r) => ({
+        ...r,
+        coupon_code: r.coupon_code || batchCouponCode,
+        coupon_details: r.coupon_details || batchCouponDetails,
+      }))
+    );
+  }
+
+  function updatePreviewRow(index, field, value) {
+    setPreviewRows((rows) => rows.map((r, i) => (i === index ? { ...r, [field]: value } : r)));
+  }
+
+  function handleBackToEdit() {
+    setPreviewRows(null);
+    setError(null);
+  }
+
   async function handleManualImport() {
     setRunning(true);
     setError(null);
     setResult(null);
     try {
-      const rows = parseCsv(text);
+      const rows = previewRows ?? parseCsv(text);
       if (rows.length === 0) throw new Error("Nothing to import — check your file/paste.");
 
       const res = await fetch("/api/products/manual-bulk-import", {
@@ -77,6 +106,10 @@ export default function BulkImportPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setResult(json);
+      setPreviewRows(null);
+      setText("");
+      setBatchCouponCode("");
+      setBatchCouponDetails("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -98,11 +131,18 @@ export default function BulkImportPage() {
       const res = await fetch("/api/amazon/bulk-import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lines, category_id: categoryId || null }),
+        body: JSON.stringify({
+          lines,
+          category_id: categoryId || null,
+          coupon_code: batchCouponCode.trim() || null,
+          coupon_details: batchCouponDetails.trim() || null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setResult(json);
+      setBatchCouponCode("");
+      setBatchCouponDetails("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -116,13 +156,13 @@ export default function BulkImportPage() {
 
       <div className="flex gap-2 mb-4">
         <button
-          onClick={() => { setMode("manual"); setResult(null); setError(null); }}
+          onClick={() => { setMode("manual"); setResult(null); setError(null); setPreviewRows(null); }}
           className={`text-sm px-4 py-2 rounded-md ${mode === "manual" ? "bg-gold text-ink font-semibold" : "bg-white/5 text-cream/70"}`}
         >
           Manual (recommended)
         </button>
         <button
-          onClick={() => { setMode("amazon"); setResult(null); setError(null); }}
+          onClick={() => { setMode("amazon"); setResult(null); setError(null); setPreviewRows(null); }}
           className={`text-sm px-4 py-2 rounded-md ${mode === "amazon" ? "bg-gold text-ink font-semibold" : "bg-white/5 text-cream/70"}`}
         >
           Amazon Auto-fetch
@@ -140,34 +180,111 @@ export default function BulkImportPage() {
 
       <p className="text-cream/50 text-sm mb-6">
         {mode === "manual"
-          ? "Upload a CSV or paste rows with: title, price, list_price, image_url, affiliate_url, brand, coupon_code, coupon_details (one product per line, comma-separated). Leave the last two blank if there's no coupon. A header row is optional."
+          ? "Upload a CSV or paste rows with: title, price, list_price, image_url, affiliate_url, brand (one product per line, comma-separated). A header row is optional. You'll get a chance to add a coupon code to each product next, before importing."
           : "Upload a CSV/text file, or paste a list, with one ASIN or Amazon.ae product link per line."}
       </p>
 
       <div className="card-surface rounded-lg p-4 space-y-4">
-        <div>
-          <label className="block text-xs text-cream/60 mb-1">Upload a .csv or .txt file (optional)</label>
-          <input type="file" accept=".csv,.txt" onChange={handleFile} className="text-sm text-cream/70" />
-        </div>
+        {mode === "amazon" || !previewRows ? (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">
+                  Coupon code for this whole batch (optional)
+                </label>
+                <input
+                  type="text"
+                  value={batchCouponCode}
+                  onChange={(e) => setBatchCouponCode(e.target.value)}
+                  placeholder="e.g. SAVE20"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-cream/60 mb-1">Coupon details (optional)</label>
+                <input
+                  type="text"
+                  value={batchCouponDetails}
+                  onChange={(e) => setBatchCouponDetails(e.target.value)}
+                  placeholder="e.g. Applies at checkout"
+                  className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-cream/40 -mt-2">
+              {mode === "manual"
+                ? "Applied to every product in this batch — you can still fine-tune or clear it per product on the next step."
+                : "Applied to every product fetched in this batch."}
+            </p>
 
-        <div>
-          <label className="block text-xs text-cream/60 mb-1">
-            {mode === "manual"
-              ? "Or paste rows: title,price,list_price,image_url,affiliate_url,brand,coupon_code,coupon_details"
-              : "Or paste ASINs / Amazon.ae links, one per line"}
-          </label>
-          <textarea
-            rows={10}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={
-              mode === "manual"
-                ? "Wireless Earbuds,99.00,149.00,https://example.com/img.jpg,https://www.amazon.ae/dp/B0XXXXX?tag=yourtag-21,SoundCo,SAVE20,Applies at checkout"
-                : "B0D1XXXXXX\nhttps://www.amazon.ae/dp/B0D2XXXXXX"
-            }
-            className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none font-mono"
-          />
-        </div>
+            <div>
+              <label className="block text-xs text-cream/60 mb-1">Upload a .csv or .txt file (optional)</label>
+              <input type="file" accept=".csv,.txt" onChange={handleFile} className="text-sm text-cream/70" />
+            </div>
+
+            <div>
+              <label className="block text-xs text-cream/60 mb-1">
+                {mode === "manual"
+                  ? "Or paste rows: title,price,list_price,image_url,affiliate_url,brand"
+                  : "Or paste ASINs / Amazon.ae links, one per line"}
+              </label>
+              <textarea
+                rows={10}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={
+                  mode === "manual"
+                    ? "Wireless Earbuds,99.00,149.00,https://example.com/img.jpg,https://www.amazon.ae/dp/B0XXXXX?tag=yourtag-21,SoundCo"
+                    : "B0D1XXXXXX\nhttps://www.amazon.ae/dp/B0D2XXXXXX"
+                }
+                className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none font-mono"
+              />
+            </div>
+          </>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs text-cream/60">
+                Add a coupon code to any product below (optional) — leave blank if there isn&apos;t one
+              </label>
+              <button
+                onClick={handleBackToEdit}
+                className="text-xs text-cream/50 underline hover:text-cream/80 shrink-0 ml-3"
+              >
+                ← Back to edit list
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[28rem] overflow-y-auto pr-1">
+              {previewRows.map((row, i) => (
+                <div key={i} className="rounded-md border border-gold/20 bg-ink-lighter px-3 py-3">
+                  <p className="text-sm text-cream/90 font-medium truncate">
+                    {row.title || <span className="text-red-400">Missing title</span>}
+                  </p>
+                  <p className="text-xs text-cream/40 mb-2">
+                    {row.price ? `AED ${row.price}` : "No price"}
+                    {row.affiliate_url ? " · has link" : " · missing link"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={row.coupon_code || ""}
+                      onChange={(e) => updatePreviewRow(i, "coupon_code", e.target.value)}
+                      placeholder="Coupon code (optional)"
+                      className="rounded-md bg-ink border border-gold/25 px-2 py-1.5 text-xs text-cream focus:border-gold outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={row.coupon_details || ""}
+                      onChange={(e) => updatePreviewRow(i, "coupon_details", e.target.value)}
+                      placeholder="Coupon details (optional)"
+                      className="rounded-md bg-ink border border-gold/25 px-2 py-1.5 text-xs text-cream focus:border-gold outline-none"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs text-cream/60 mb-1">Assign all to category (optional)</label>
@@ -183,13 +300,23 @@ export default function BulkImportPage() {
           </select>
         </div>
 
-        <button
-          onClick={mode === "manual" ? handleManualImport : handleAmazonImport}
-          disabled={running || !text.trim()}
-          className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2.5 text-sm disabled:opacity-60"
-        >
-          {running ? "Importing..." : "Start Import"}
-        </button>
+        {mode === "manual" && !previewRows ? (
+          <button
+            onClick={handleBuildPreview}
+            disabled={!text.trim()}
+            className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2.5 text-sm disabled:opacity-60"
+          >
+            Next: Add Coupons →
+          </button>
+        ) : (
+          <button
+            onClick={mode === "manual" ? handleManualImport : handleAmazonImport}
+            disabled={running || (mode === "manual" ? !previewRows?.length : !text.trim())}
+            className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2.5 text-sm disabled:opacity-60"
+          >
+            {running ? "Importing..." : "Start Import"}
+          </button>
+        )}
       </div>
 
       {error && (

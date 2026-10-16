@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { formatAed } from "@/lib/formatCurrency";
 
 const PAGE_SIZE = 20;
@@ -345,7 +344,12 @@ export default function AdminProductsPage() {
 
                 <div className="relative w-14 h-14 shrink-0 bg-white/5 rounded">
                   {p.image_url && (
-                    <Image src={p.image_url} alt={p.title} fill sizes="56px" className="object-contain p-1" />
+                    <img
+                      src={p.image_url}
+                      alt={p.title}
+                      className="w-full h-full object-contain p-1"
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    />
                   )}
                 </div>
 
@@ -373,14 +377,6 @@ export default function AdminProductsPage() {
                     }`}
                   >
                     {p.is_featured ? "Featured" : "Not featured"}
-                  </button>
-                  <button
-                    onClick={() => toggleField(p, "is_creators_choice")}
-                    className={`px-2 py-1 rounded ${
-                      p.is_creators_choice ? "bg-violet-500/20 text-violet-300" : "bg-white/5 text-cream/40"
-                    }`}
-                  >
-                    {p.is_creators_choice ? "✨ Creators Choice" : "Not in Creators Choice"}
                   </button>
                   <Link
                     href={`/admin/products/${p.id}/edit`}

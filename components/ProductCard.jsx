@@ -25,6 +25,23 @@ export default function ProductCard({ product }) {
   const isAdmin = useIsAdmin();
   const [copiedCoupon, setCopiedCoupon] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  // Amazon occasionally hands back a dead image reference for a product
+  // (especially on cheaper marketplace listings), and separately, forcing
+  // a higher resolution than Amazon actually generated for that image can
+  // 404 even when the original size works fine. So on a load failure this
+  // retries the plain, non-upscaled URL once before giving up to a "No
+  // image" placeholder, instead of showing a browser broken-image icon.
+  const [triedOriginal, setTriedOriginal] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
+  const displayImage = triedOriginal ? product.image_url : hiResImage;
+
+  function handleImageError() {
+    if (!triedOriginal && product.image_url && product.image_url !== hiResImage) {
+      setTriedOriginal(true);
+    } else {
+      setImageFailed(true);
+    }
+  }
 
   function handleLampClick(e) {
     e.preventDefault();
@@ -60,14 +77,16 @@ export default function ProductCard({ product }) {
       className="flex flex-col flex-1"
     >
       <div className="relative aspect-square bg-white/5">
-        {hiResImage ? (
+        {displayImage && !imageFailed ? (
           <Image
-            src={hiResImage}
+            key={displayImage}
+            src={displayImage}
             alt={product.title}
             fill
             quality={90}
             sizes="(max-width: 768px) 50vw, 240px"
             className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+            onError={handleImageError}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-cream/30 text-sm">

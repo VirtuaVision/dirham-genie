@@ -98,7 +98,7 @@ export default function EditProductPage() {
       <form onSubmit={handleSave} className="card-surface rounded-lg p-5 space-y-4">
         {form.image_url && (
           <div className="relative w-24 h-24 bg-white/5 rounded">
-            <img src={form.image_url} alt="" className="w-full h-full object-contain p-2" />
+            <img src={form.image_url} alt="" className="w-full h-full object-contain p-2" onError={(e) => { e.currentTarget.style.opacity = "0.15"; }} />
           </div>
         )}
 
@@ -110,7 +110,7 @@ export default function EditProductPage() {
             <div className="flex flex-wrap gap-2">
               {form.additional_images.map((url, i) => (
                 <div key={i} className="relative w-16 h-16 bg-white/5 rounded border border-gold/20">
-                  <img src={url} alt="" className="w-full h-full object-contain p-1" />
+                  <img src={url} alt="" className="w-full h-full object-contain p-1" onError={(e) => { e.currentTarget.style.opacity = "0.15"; }} />
                 </div>
               ))}
             </div>

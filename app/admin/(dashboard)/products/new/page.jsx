@@ -487,7 +487,7 @@ export default function NewProductPage() {
                   <div key={item.asin} className="card-surface rounded-lg p-3 flex flex-col gap-2">
                     <div className="relative aspect-square bg-white/5 rounded flex items-center justify-center">
                       {item.image_url ? (
-                        <img src={item.image_url} alt="" className="max-h-full max-w-full object-contain p-3" />
+                        <img src={item.image_url} alt="" className="max-h-full max-w-full object-contain p-3" onError={(e) => { e.currentTarget.style.opacity = "0.15"; }} />
                       ) : (
                         <span className="text-cream/30 text-xs">No image</span>
                       )}
@@ -602,7 +602,7 @@ export default function NewProductPage() {
       <form onSubmit={handleSave} className="card-surface rounded-lg p-5 space-y-4">
         {form.image_url && (
           <div className="relative w-24 h-24 bg-white/5 rounded">
-            <img src={form.image_url} alt="" className="w-full h-full object-contain p-2" />
+            <img src={form.image_url} alt="" className="w-full h-full object-contain p-2" onError={(e) => { e.currentTarget.style.opacity = "0.15"; }} />
           </div>
         )}
 
@@ -614,7 +614,7 @@ export default function NewProductPage() {
             <div className="flex flex-wrap gap-2">
               {form.additional_images.map((url, i) => (
                 <div key={i} className="relative w-16 h-16 bg-white/5 rounded border border-gold/20">
-                  <img src={url} alt="" className="w-full h-full object-contain p-1" />
+                  <img src={url} alt="" className="w-full h-full object-contain p-1" onError={(e) => { e.currentTarget.style.opacity = "0.15"; }} />
                 </div>
               ))}
             </div>

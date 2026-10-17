@@ -4,6 +4,27 @@ import { useEffect, useState } from "react";
 
 const empty = { title: "", code: "", description: "", affiliate_url: "", expires_at: "" };
 
+function ToggleSwitch({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      aria-pressed={checked}
+      aria-label={label}
+      title={label}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+        checked ? "bg-gold" : "bg-white/15"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-cream transition-transform ${
+          checked ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
+    </button>
+  );
+}
+
 export default function CouponsPage() {
   const [coupons, setCoupons] = useState([]);
   const [form, setForm] = useState(empty);
@@ -101,6 +122,19 @@ export default function CouponsPage() {
     load();
   }
 
+  async function toggleAutoShare(coupon) {
+    // Optimistic update so the switch flips instantly instead of waiting
+    // on the round-trip.
+    setCoupons((prev) =>
+      prev.map((c) => (c.id === coupon.id ? { ...c, auto_share_social: !c.auto_share_social } : c))
+    );
+    await fetch(`/api/coupons/${coupon.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ auto_share_social: !coupon.auto_share_social }),
+    });
+  }
+
   async function remove(coupon) {
     if (!confirm(`Delete coupon "${coupon.title}"?`)) return;
     await fetch(`/api/coupons/${coupon.id}`, { method: "DELETE" });
@@ -196,8 +230,8 @@ export default function CouponsPage() {
         <div className="space-y-2">
           {coupons.length === 0 && <p className="text-cream/50 text-sm">No coupons yet.</p>}
           {coupons.map((c) => (
-            <div key={c.id} className="card-surface rounded-lg p-3 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
+            <div key={c.id} className="card-surface rounded-lg p-3 flex flex-wrap items-center gap-3">
+              <div className="flex-1 min-w-0 basis-full sm:basis-auto">
                 <p className="text-sm text-cream/90">{c.title}</p>
                 <p className="text-xs text-cream/50">
                   {c.code ? `Code: ${c.code}` : "No code"}
@@ -210,6 +244,16 @@ export default function CouponsPage() {
               >
                 {c.is_active ? "Active" : "Hidden"}
               </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] text-cream/40 leading-tight max-w-[3.5rem]">
+                  {c.auto_share_social ? "Auto-shares" : "Won't auto-share"}
+                </span>
+                <ToggleSwitch
+                  checked={!!c.auto_share_social}
+                  onChange={() => toggleAutoShare(c)}
+                  label="Auto-share this coupon to social media"
+                />
+              </div>
               <button
                 onClick={() => startEdit(c)}
                 className="text-xs px-2 py-1 rounded bg-white/5 text-cream/70 hover:text-gold"

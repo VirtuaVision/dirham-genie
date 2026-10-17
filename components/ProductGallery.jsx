@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 
+// Amazon product photos are plain <img>, not next/image, on purpose:
+// Vercel's image-optimization step occasionally fails on a perfectly valid
+// Amazon photo (timeout / format quirk on their end), which otherwise shows
+// as a broken image even though the photo itself loads fine everywhere
+// else (admin previews, direct links, etc all use plain <img> already).
+// Amazon's own CDN already serves an appropriately-sized file via the
+// _SLnnn_ part of the URL, so there's little optimization upside anyway.
 export default function ProductGallery({ mainImage, additionalImages, title }) {
   const allImages = [mainImage, ...(additionalImages || [])].filter(Boolean);
-  // Amazon occasionally hands back a dead image reference for one photo in
-  // a listing — track which URLs failed to load so we can skip straight
-  // past them instead of showing a browser broken-image icon.
+  // Still guard against a genuinely dead Amazon image reference (does
+  // happen occasionally) — track which URLs actually fail to load so we
+  // can skip past them instead of showing a browser broken-image icon.
   const [failedUrls, setFailedUrls] = useState(() => new Set());
   const workingImages = allImages.filter((url) => !failedUrls.has(url));
   const [active, setActive] = useState(allImages[0] || null);
@@ -15,8 +21,7 @@ export default function ProductGallery({ mainImage, additionalImages, title }) {
   function markFailed(url) {
     setFailedUrls((prev) => {
       if (prev.has(url)) return prev;
-      const next = new Set(prev).add(url);
-      return next;
+      return new Set(prev).add(url);
     });
   }
 
@@ -34,14 +39,11 @@ export default function ProductGallery({ mainImage, additionalImages, title }) {
   return (
     <div>
       <div className="relative aspect-square">
-        <Image
+        <img
           key={displayActive}
           src={displayActive}
           alt={title}
-          fill
-          sizes="(max-width: 768px) 100vw, 480px"
-          className="object-contain p-8"
-          priority
+          className="absolute inset-0 w-full h-full object-contain p-8"
           onError={() => markFailed(displayActive)}
         />
       </div>
@@ -55,7 +57,12 @@ export default function ProductGallery({ mainImage, additionalImages, title }) {
                 displayActive === url ? "border-gold" : "border-gold/20"
               }`}
             >
-              <Image src={url} alt="" fill sizes="64px" className="object-contain p-1" onError={() => markFailed(url)} />
+              <img
+                src={url}
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain p-1"
+                onError={() => markFailed(url)}
+              />
             </button>
           ))}
         </div>

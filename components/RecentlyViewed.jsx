@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { formatAed } from "@/lib/formatCurrency";
 
 export default function RecentlyViewed() {
@@ -30,7 +29,12 @@ export default function RecentlyViewed() {
           >
             <div className="relative w-full aspect-square bg-white/5 rounded">
               {p.image_url && (
-                <Image src={p.image_url} alt={p.title} fill sizes="128px" className="object-contain p-2" />
+                <img
+                  src={p.image_url}
+                  alt={p.title}
+                  className="absolute inset-0 w-full h-full object-contain p-2"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
               )}
             </div>
             <p className="text-xs text-cream/80 mt-1 line-clamp-2">{p.title}</p>

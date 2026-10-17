@@ -7,6 +7,12 @@ export async function PUT(request, { params }) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await request.json();
+  // A blank "Expires on" field submits as "" — Postgres rejects that for a
+  // timestamp column ("invalid input syntax for type timestamp with time
+  // zone"), so normalize it to null, same as the POST (create) route does.
+  if ("expires_at" in body) {
+    body.expires_at = body.expires_at || null;
+  }
   const { data, error } = await supabaseAdmin
     .from("coupons")
     .update(body)

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { formatAed } from "@/lib/formatCurrency";
 
 export default function WishlistPage() {
@@ -40,7 +39,12 @@ export default function WishlistPage() {
             <div key={p.id} className="card-surface rounded-lg p-3 flex items-center gap-4">
               <div className="relative w-16 h-16 shrink-0 bg-white/5 rounded">
                 {p.image_url && (
-                  <Image src={p.image_url} alt={p.title} fill sizes="64px" className="object-contain p-1" />
+                  <img
+                    src={p.image_url}
+                    alt={p.title}
+                    className="absolute inset-0 w-full h-full object-contain p-1"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
                 )}
               </div>
               <div className="flex-1 min-w-0">

@@ -2,12 +2,12 @@ import { Cinzel, Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Header from "@/components/Header";
-import SocialIconsBar from "@/components/SocialIconsBar";
 import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import CookieConsent from "@/components/CookieConsent";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import InstallPrompt from "@/components/InstallPrompt";
+import CapacitorPushInit from "@/components/CapacitorPushInit";
 import ConditionalChrome from "@/components/ConditionalChrome";
 import { AdminStatusProvider } from "@/components/AdminStatusProvider";
 import { getLocale } from "@/lib/i18n";
@@ -111,10 +111,10 @@ export default function RootLayout({ children }) {
         <GoogleAnalytics />
         <ServiceWorkerRegister />
         <InstallPrompt />
+        <CapacitorPushInit />
         <AdminStatusProvider>
           <ConditionalChrome>
             <Header />
-            <SocialIconsBar />
           </ConditionalChrome>
           <main className="flex-1">{children}</main>
           <ConditionalChrome>

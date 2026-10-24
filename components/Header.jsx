@@ -6,6 +6,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import SearchBar from "@/components/SearchBar";
 import WishlistCount from "@/components/WishlistCount";
 import { getSiteSetting } from "@/lib/siteSettings";
+import { getSocialLinks, SocialIconRow } from "@/components/SocialIconsBar";
 
 async function getCategories() {
   const { data } = await supabase
@@ -16,9 +17,10 @@ async function getCategories() {
 }
 
 export default async function Header() {
-  const [categories, logoUrl] = await Promise.all([
+  const [categories, logoUrl, socialLinks] = await Promise.all([
     getCategories(),
     getSiteSetting("site_logo", "/logo-dirham-genie.png"),
+    getSocialLinks(),
   ]);
   const locale = getLocale();
 
@@ -46,23 +48,6 @@ export default async function Header() {
             <SearchBar placeholder={t(locale, "search")} mode="amazon" />
           </div>
 
-          <nav className="hidden lg:flex items-center gap-5 text-sm">
-            <Link href="/deals/latest" className="text-cream/80 hover:text-gold transition-colors">{t(locale, "latest")}</Link>
-            <Link href="/deals/lightning" className="text-cream/80 hover:text-gold transition-colors">⚡ {t(locale, "lightning")}</Link>
-            <Link href="/deals/biggest-discounts" className="text-cream/80 hover:text-gold transition-colors">{t(locale, "topDiscounts")}</Link>
-            <Link href="/coupons" className="text-cream/80 hover:text-gold transition-colors">{t(locale, "coupons")}</Link>
-            {categories.slice(0, 3).map((c) => (
-              <Link
-                key={c.slug}
-                href={`/category/${c.slug}`}
-                className="text-cream/80 hover:text-gold transition-colors"
-              >
-                {c.name}
-              </Link>
-            ))}
-            <LanguageSwitcher locale={locale} />
-          </nav>
-
           <div className="flex items-center gap-1 shrink-0">
             <Link
               href="/wishlist"
@@ -87,31 +72,53 @@ export default async function Header() {
           <SearchBar placeholder={t(locale, "search")} mode="amazon" />
         </div>
 
-        <div className="lg:hidden pb-3 flex items-center gap-2 overflow-x-auto text-xs">
-          <Link
-            href="/coupons"
-            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
-          >
-            🎟️ {t(locale, "coupons")}
-          </Link>
-          <Link
-            href="/deals/latest"
-            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
-          >
-            {t(locale, "latest")}
-          </Link>
-          <Link
-            href="/deals/lightning"
-            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
-          >
-            ⚡ {t(locale, "lightning")}
-          </Link>
-          <Link
-            href="/deals/biggest-discounts"
-            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
-          >
-            {t(locale, "topDiscounts")}
-          </Link>
+        {/* One combined strip below the logo row — nav links on the left,
+            social icons on the right — instead of a separate stacked bar.
+            On desktop it's a normal row; below lg it becomes a single
+            horizontally-scrollable strip so nothing is hidden on mobile. */}
+        <div className="pb-3 flex items-center gap-3 overflow-x-auto lg:overflow-visible">
+          <nav className="flex items-center gap-2 lg:gap-5 text-xs lg:text-sm shrink-0">
+            <Link
+              href="/deals/latest"
+              className="shrink-0 px-3 py-1.5 lg:px-0 lg:py-0 rounded-full lg:rounded-none border lg:border-0 border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+            >
+              {t(locale, "latest")}
+            </Link>
+            <Link
+              href="/deals/lightning"
+              className="shrink-0 px-3 py-1.5 lg:px-0 lg:py-0 rounded-full lg:rounded-none border lg:border-0 border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+            >
+              ⚡ {t(locale, "lightning")}
+            </Link>
+            <Link
+              href="/deals/biggest-discounts"
+              className="shrink-0 px-3 py-1.5 lg:px-0 lg:py-0 rounded-full lg:rounded-none border lg:border-0 border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+            >
+              {t(locale, "topDiscounts")}
+            </Link>
+            <Link
+              href="/coupons"
+              className="shrink-0 px-3 py-1.5 lg:px-0 lg:py-0 rounded-full lg:rounded-none border lg:border-0 border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+            >
+              🎟️ {t(locale, "coupons")}
+            </Link>
+            {categories.slice(0, 3).map((c) => (
+              <Link
+                key={c.slug}
+                href={`/category/${c.slug}`}
+                className="hidden lg:inline text-cream/80 hover:text-gold transition-colors"
+              >
+                {c.name}
+              </Link>
+            ))}
+            <span className="hidden lg:inline">
+              <LanguageSwitcher locale={locale} />
+            </span>
+          </nav>
+
+          <div className="flex-1 hidden lg:block" />
+
+          <SocialIconRow links={socialLinks} showLabel={false} className="shrink-0 ml-auto lg:ml-0" />
         </div>
       </div>
     </header>

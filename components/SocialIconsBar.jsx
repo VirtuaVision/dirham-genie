@@ -6,10 +6,11 @@
 
 import { getSiteSetting } from "@/lib/siteSettings";
 
-function IconCircle({ bg, children, gradient }) {
+function IconCircle({ bg, children, gradient, size = 7 }) {
+  const px = size === 6 ? "w-6 h-6" : "w-7 h-7";
   return (
     <span
-      className="inline-flex items-center justify-center w-7 h-7 rounded-full shrink-0 text-white"
+      className={`inline-flex items-center justify-center ${px} rounded-full shrink-0 text-white`}
       style={gradient ? { background: gradient } : { backgroundColor: bg }}
     >
       {children}
@@ -17,7 +18,9 @@ function IconCircle({ bg, children, gradient }) {
   );
 }
 
-export default async function SocialIconsBar() {
+// Fetches the configured social links from Site Settings. Used by both the
+// combined Header row and anywhere else that wants this same list.
+export async function getSocialLinks() {
   const [instagram, facebook, tiktok, whatsapp, youtube, twitter] = await Promise.all([
     getSiteSetting("social_instagram", ""),
     getSiteSetting("social_facebook", ""),
@@ -99,24 +102,46 @@ export default async function SocialIconsBar() {
     },
   ].filter((s) => s.href);
 
-  if (socialLinks.length === 0) return null;
+  return socialLinks;
+}
 
+// Just the row of icon links, no wrapping bar/background — meant to be
+// dropped into another layout (the combined Header) rather than standing
+// on its own. Pass compact to shrink the icons slightly for tight spaces.
+export function SocialIconRow({ links, showLabel = true, labelClassName = "text-cream/40", className = "" }) {
+  if (!links || links.length === 0) return null;
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      {showLabel && (
+        <span className={`text-[11px] font-semibold uppercase tracking-wide mr-0.5 shrink-0 ${labelClassName}`}>
+          Follow Us
+        </span>
+      )}
+      {links.map((s) => (
+        <a
+          key={s.label}
+          href={s.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={s.label}
+          className="hover:scale-110 transition-transform shrink-0"
+        >
+          {s.icon}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+// Standalone full-width bar version, kept for anywhere that still wants
+// the old look (its own background strip) rather than the folded-in one.
+export default async function SocialIconsBar() {
+  const links = await getSocialLinks();
+  if (links.length === 0) return null;
   return (
     <div className="bg-cream/60 border-b border-gold/10">
       <div className="max-w-6xl mx-auto px-4 py-2 flex items-center justify-center gap-2 flex-wrap">
-        <span className="text-[11px] text-ink/50 font-semibold uppercase tracking-wide mr-1">Follow Us</span>
-        {socialLinks.map((s) => (
-          <a
-            key={s.label}
-            href={s.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={s.label}
-            className="hover:scale-110 transition-transform"
-          >
-            {s.icon}
-          </a>
-        ))}
+        <SocialIconRow links={links} showLabel labelClassName="text-ink/50" />
       </div>
     </div>
   );

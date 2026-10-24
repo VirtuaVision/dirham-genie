@@ -86,6 +86,33 @@ export default async function Header() {
         <div className="md:hidden pb-3 flex">
           <SearchBar placeholder={t(locale, "search")} mode="amazon" />
         </div>
+
+        <div className="lg:hidden pb-3 flex items-center gap-2 overflow-x-auto text-xs">
+          <Link
+            href="/coupons"
+            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+          >
+            🎟️ {t(locale, "coupons")}
+          </Link>
+          <Link
+            href="/deals/latest"
+            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+          >
+            {t(locale, "latest")}
+          </Link>
+          <Link
+            href="/deals/lightning"
+            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+          >
+            ⚡ {t(locale, "lightning")}
+          </Link>
+          <Link
+            href="/deals/biggest-discounts"
+            className="shrink-0 px-3 py-1.5 rounded-full border border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+          >
+            {t(locale, "topDiscounts")}
+          </Link>
+        </div>
       </div>
     </header>
   );

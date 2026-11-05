@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+// Without this, Next.js 14 runs a plain GET route once at deploy time and
+// keeps serving that frozen result — which is why codes added later never
+// showed up. This makes it query the database on every request instead.
+export const dynamic = "force-dynamic";
+
 // Public: the active site-wide codes shown in the lamp popup.
 export async function GET() {
   const { data, error } = await supabaseAdmin

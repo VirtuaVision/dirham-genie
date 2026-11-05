@@ -2,19 +2,22 @@
 
 import { useEffect } from "react";
 
-// This runs on every page load of the website — but the early return means
-// it does nothing at all for regular web visitors. It only springs to life
-// when the same site is loaded inside the Capacitor Android app shell,
-// where window.Capacitor is injected automatically by the native runtime.
+// Runs on every page load of the website, but does nothing for regular web
+// visitors. It only activates when the site is opened inside the Dirham
+// Genie Android app (a Capacitor shell), which injects window.Capacitor and
+// its native plugins into the page. That means this file needs no npm
+// package of its own — nothing to install or bundle for the website.
 export default function CapacitorPushInit() {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!window.Capacitor?.isNativePlatform?.()) return;
+    const cap = window.Capacitor;
+    if (!cap?.isNativePlatform?.()) return;
+
+    const PushNotifications = cap.Plugins?.PushNotifications;
+    if (!PushNotifications) return;
 
     (async () => {
       try {
-        const { PushNotifications } = await import("@capacitor/push-notifications");
-
         const perm = await PushNotifications.requestPermissions();
         if (perm.receive !== "granted") return;
 

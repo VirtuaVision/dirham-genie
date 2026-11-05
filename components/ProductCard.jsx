@@ -8,6 +8,7 @@ import CountdownTimer from "@/components/CountdownTimer";
 import StarRating from "@/components/StarRating";
 import { useIsAdmin } from "@/components/AdminStatusProvider";
 import SocialPostModal from "@/components/SocialPostModal";
+import CouponPopup from "@/components/CouponPopup";
 
 // Amazon image URLs carry their resolution in the filename itself
 // (e.g. "._SL500_.jpg"). Bumping that number gets a noticeably sharper
@@ -22,7 +23,7 @@ export default function ProductCard({ product }) {
   const checked = timeAgo(product.last_synced_at || product.updated_at);
   const hiResImage = upscaleAmazonImage(product.image_url);
   const isAdmin = useIsAdmin();
-  const [copiedCoupon, setCopiedCoupon] = useState(false);
+  const [showCouponPopup, setShowCouponPopup] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
   // Amazon occasionally hands back a dead image reference for a product
   // (especially on cheaper marketplace listings), and separately, forcing
@@ -42,14 +43,12 @@ export default function ProductCard({ product }) {
     }
   }
 
+  // The lamp opens a popup with this product's own code (if any) plus the
+  // site-wide codes managed in Admin -> Coupon Popup, on every product.
   function handleLampClick(e) {
     e.preventDefault();
     e.stopPropagation();
-    if (!product.coupon_code) return;
-    navigator.clipboard.writeText(product.coupon_code).then(() => {
-      setCopiedCoupon(true);
-      setTimeout(() => setCopiedCoupon(false), 2000);
-    });
+    setShowCouponPopup(true);
   }
 
   function handleAmazonClick(e) {
@@ -146,14 +145,9 @@ export default function ProductCard({ product }) {
           <div className="relative shrink-0">
             <button
               onClick={handleLampClick}
-              disabled={!product.coupon_code}
-              aria-label={product.coupon_code ? "Copy coupon code" : "No coupon for this product"}
-              title={product.coupon_code ? "Tap to copy coupon code" : ""}
-              className={`bg-gold/20 border rounded-full p-1.5 transition-all ${
-                product.coupon_code
-                  ? "border-gold/60 hover:bg-gold/30 hover:scale-110 active:scale-95 cursor-pointer"
-                  : "border-gold/40 cursor-default"
-              }`}
+              aria-label="View coupon codes"
+              title="Tap to view coupon codes"
+              className="bg-gold/20 border border-gold/60 rounded-full p-1.5 transition-all hover:bg-gold/30 hover:scale-110 active:scale-95 cursor-pointer"
             >
               <img
                 src="/lamp-icon-gold-1.png"
@@ -164,11 +158,6 @@ export default function ProductCard({ product }) {
             </button>
             {product.coupon_code && (
               <span className="absolute -top-1 -right-1 w-3 h-3 bg-deal-green rounded-full border-2 border-white" />
-            )}
-            {copiedCoupon && (
-              <span className="absolute -top-8 right-0 bg-ink text-cream text-[10px] font-semibold px-2 py-1 rounded whitespace-nowrap shadow-lg">
-                Copied: {product.coupon_code}
-              </span>
             )}
           </div>
         </div>
@@ -214,6 +203,13 @@ export default function ProductCard({ product }) {
         )}
       </div>
     </div>
+    {showCouponPopup && (
+      <CouponPopup
+        product={product}
+        onClose={() => setShowCouponPopup(false)}
+        onBuyClick={handleAmazonClick}
+      />
+    )}
     {showPostModal && (
       <SocialPostModal product={product} onClose={() => setShowPostModal(false)} />
     )}

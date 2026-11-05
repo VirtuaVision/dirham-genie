@@ -16,6 +16,7 @@ const links = [
   { href: "/admin/bulk-import", label: "Bulk Import" },
   { href: "/admin/banners", label: "Banners" },
   { href: "/admin/coupons", label: "Coupons" },
+  { href: "/admin/popup-coupons", label: "Coupon Popup" },
   { href: "/admin/posts", label: "Blog Posts" },
  { href: "/admin/social-post", label: "Social Post Generator" },
 { href: "/admin/ai-image-studio", label: "AI Image Studio" },

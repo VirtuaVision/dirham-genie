@@ -9,6 +9,7 @@ import StarRating from "@/components/StarRating";
 import { useIsAdmin } from "@/components/AdminStatusProvider";
 import SocialPostModal from "@/components/SocialPostModal";
 import CouponPopup from "@/components/CouponPopup";
+import { productShareLink } from "@/lib/shortLink";
 
 // Amazon image URLs carry their resolution in the filename itself
 // (e.g. "._SL500_.jpg"). Bumping that number gets a noticeably sharper
@@ -25,6 +26,7 @@ export default function ProductCard({ product }) {
   const isAdmin = useIsAdmin();
   const [showCouponPopup, setShowCouponPopup] = useState(false);
   const [showPostModal, setShowPostModal] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   // Amazon occasionally hands back a dead image reference for a product
   // (especially on cheaper marketplace listings), and separately, forcing
   // a higher resolution than Amazon actually generated for that image can
@@ -41,6 +43,25 @@ export default function ProductCard({ product }) {
     } else {
       setImageFailed(true);
     }
+  }
+
+  // Admin-only: copies this product's short share link (dirhamgenie.com/p/xxxx).
+  async function handleCopyShortLink() {
+    const link = productShareLink(product);
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      const el = document.createElement("textarea");
+      el.value = link;
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   }
 
   // The lamp opens a popup with this product's own code (if any) plus the
@@ -199,6 +220,18 @@ export default function ProductCard({ product }) {
             className="block w-full text-center rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold text-xs py-2 transition-colors"
           >
             📤 Post to Social Media
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            onClick={handleCopyShortLink}
+            className="block w-full text-center rounded-md border border-gold/40 text-gold hover:bg-gold/10 font-semibold text-xs py-2 transition-colors"
+          >
+            {linkCopied
+              ? "Copied ✓"
+              : product.short_code
+              ? "🔗 Copy Short Link"
+              : "🔗 Copy Product Link"}
           </button>
         )}
       </div>

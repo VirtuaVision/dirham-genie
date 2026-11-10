@@ -48,17 +48,63 @@ export async function POST(request) {
     );
   }
 
-  // Skip ASINs that already exist on the site
+  // ASINs already on the site aren't fetched again. Instead they're moved
+  // back to the top of the site (the "Newest" order is by created_at, so
+  // refreshing that date puts them on page one again), and if you entered a
+  // batch coupon code, it's added to any of them that don't have a code yet.
   const { data: existingProducts } = await supabaseAdmin
     .from("products")
-    .select("asin")
+    .select("id, asin, coupon_code, is_active")
     .in("asin", asins);
   const existingAsins = new Set((existingProducts || []).map((p) => p.asin));
   const newAsins = asins.filter((a) => !existingAsins.has(a));
 
+  const batchCode = (coupon_code || "").trim();
+  const batchDetails = (coupon_details || "").trim();
+
+  // Keep the order you pasted them in: each one gets a timestamp a
+  // millisecond apart, so later lines end up slightly newer (shown first),
+  // just like freshly imported products.
+  const byAsin = new Map();
+  for (const p of existingProducts || []) {
+    if (!byAsin.has(p.asin)) byAsin.set(p.asin, []);
+    byAsin.get(p.asin).push(p);
+  }
+  const toBump = [];
+  asins.forEach((asin) => {
+    (byAsin.get(asin) || []).forEach((p) => toBump.push(p));
+  });
+
+  let movedToTop = 0;
+  let couponAdded = 0;
+  let hiddenMoved = 0;
+  const baseTime = Date.now();
+  const bumpErrors = [];
+
+  for (const group of chunkArray(toBump.map((p, i) => ({ p, i })), 10)) {
+    await Promise.all(
+      group.map(async ({ p, i }) => {
+        const update = { created_at: new Date(baseTime + i).toISOString() };
+        const needsCode = batchCode && !(p.coupon_code || "").trim();
+        if (needsCode) {
+          update.coupon_code = batchCode;
+          update.coupon_details = batchDetails || null;
+        }
+        const { error } = await supabaseAdmin.from("products").update(update).eq("id", p.id);
+        if (error) {
+          bumpErrors.push(`${p.asin}: ${error.message}`);
+          return;
+        }
+        movedToTop += 1;
+        if (needsCode) couponAdded += 1;
+        if (p.is_active === false) hiddenMoved += 1;
+      })
+    );
+  }
+
   let imported = 0;
-  let errors = 0;
-  const errorMessages = [];
+  let errors = bumpErrors.length;
+  const errorMessages = [...bumpErrors];
 
   for (const batch of chunkArray(newAsins, 10)) {
     try {
@@ -105,6 +151,9 @@ export async function POST(request) {
   return NextResponse.json({
     imported,
     skippedDuplicates: existingAsins.size,
+    movedToTop,
+    couponAdded,
+    hiddenMoved,
     invalidLines: invalidCount,
     errors,
     details: errorMessages,

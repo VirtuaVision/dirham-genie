@@ -330,14 +330,40 @@ export default function BulkImportPage() {
           <p className="text-deal-green font-semibold">
             Imported {result.imported} new product{result.imported === 1 ? "" : "s"}.
           </p>
-          {result.skippedDuplicates !== undefined && (
-            <p className="text-cream/60 mt-1">
-              Skipped {result.skippedDuplicates} already on your site
-              {result.invalidLines > 0 && `, ignored ${result.invalidLines} invalid line(s)`}
-              {result.errors > 0 && `, ${result.errors} error(s)`}.
-            </p>
+          {result.movedToTop !== undefined ? (
+            <>
+              {result.movedToTop > 0 && (
+                <p className="text-cream/60 mt-1">
+                  {result.movedToTop} product{result.movedToTop === 1 ? " was" : "s were"} already on your
+                  site — moved back to the top of the first page.
+                  {result.couponAdded > 0 &&
+                    ` Added your coupon code to ${result.couponAdded} that had none.`}
+                </p>
+              )}
+              {result.hiddenMoved > 0 && (
+                <p className="text-cream/60 mt-1">
+                  {result.hiddenMoved} of those {result.hiddenMoved === 1 ? "is" : "are"} currently hidden
+                  (not Active), so {result.hiddenMoved === 1 ? "it won't" : "they won't"} show until you turn
+                  {result.hiddenMoved === 1 ? " it" : " them"} on.
+                </p>
+              )}
+              {(result.invalidLines > 0 || result.errors > 0) && (
+                <p className="text-cream/60 mt-1">
+                  {result.invalidLines > 0 && `Ignored ${result.invalidLines} invalid line(s). `}
+                  {result.errors > 0 && `${result.errors} error(s).`}
+                </p>
+              )}
+            </>
+          ) : (
+            result.skippedDuplicates !== undefined && (
+              <p className="text-cream/60 mt-1">
+                Skipped {result.skippedDuplicates} already on your site
+                {result.invalidLines > 0 && `, ignored ${result.invalidLines} invalid line(s)`}
+                {result.errors > 0 && `, ${result.errors} error(s)`}.
+              </p>
+            )
           )}
-          {result.errors > 0 && result.skippedDuplicates === undefined && (
+          {result.errors > 0 && result.skippedDuplicates === undefined && result.movedToTop === undefined && (
             <p className="text-cream/60 mt-1">{result.errors} row(s) had errors.</p>
           )}
           {result.details?.length > 0 && (

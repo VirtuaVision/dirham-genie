@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import AutoShareSwitches from "@/components/AutoShareSwitches";
 
 const emptyForm = {
   title: "",
@@ -377,6 +378,7 @@ export default function NewProductPage() {
       </div>
 
       <SocialLinksToggle value={includeSocialLinks} onChange={setIncludeSocialLinks} />
+      {includeSocialLinks && <AutoShareSwitches />}
 
       {mode === "amazon" && (
         <form onSubmit={handleAmazonFetch} className="card-surface rounded-lg p-4 mb-6">

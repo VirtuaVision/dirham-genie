@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AutoShareSwitches from "@/components/AutoShareSwitches";
 
 const empty = { title: "", code: "", description: "", affiliate_url: "", expires_at: "" };
 
@@ -145,6 +146,8 @@ export default function CouponsPage() {
   return (
     <div>
       <h1 className="font-display text-2xl text-gold mb-6">Coupons</h1>
+
+      <AutoShareSwitches />
 
       {error && <p className="text-red-300 text-sm mb-4">{error}</p>}
 

@@ -8,6 +8,18 @@ import WishlistCount from "@/components/WishlistCount";
 import { getSiteSetting } from "@/lib/siteSettings";
 import { getSocialLinks, SocialIconRow } from "@/components/SocialIconsBar";
 
+// Collections you've switched on "Show as a pill in the menu" for.
+async function getMenuCollections() {
+  const { data } = await supabase
+    .from("collections")
+    .select("title, slug")
+    .eq("is_active", true)
+    .eq("show_in_menu", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  return data || [];
+}
+
 async function getCategories() {
   const { data } = await supabase
     .from("categories")
@@ -17,10 +29,11 @@ async function getCategories() {
 }
 
 export default async function Header() {
-  const [categories, logoUrl, socialLinks] = await Promise.all([
+  const [categories, logoUrl, socialLinks, menuCollections] = await Promise.all([
     getCategories(),
     getSiteSetting("site_logo", "/logo-dirham-genie.png"),
     getSocialLinks(),
+    getMenuCollections(),
   ]);
   const locale = getLocale();
 
@@ -102,6 +115,15 @@ export default async function Header() {
             >
               🎟️ {t(locale, "coupons")}
             </Link>
+            {menuCollections.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/collection/${c.slug}`}
+                className="shrink-0 px-3 py-1.5 lg:px-0 lg:py-0 rounded-full lg:rounded-none border lg:border-0 border-gold/30 text-cream/80 hover:border-gold hover:text-gold transition-colors"
+              >
+                {c.title}
+              </Link>
+            ))}
             {categories.slice(0, 3).map((c) => (
               <Link
                 key={c.slug}

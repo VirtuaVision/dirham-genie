@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -42,21 +42,29 @@ function Thumb({ src }) {
   );
 }
 
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
 export default function EditCollectionPage() {
   const { id } = useParams();
   const [form, setForm] = useState(null);
   const [items, setItems] = useState([]); // products on this page, in order
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  const [dirty, setDirty] = useState(false);
+
+  // Title / web address / intro are saved with a button. The two switches and
+  // the product list save by themselves the moment you change them.
+  const [detailsDirty, setDetailsDirty] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [detailsNote, setDetailsNote] = useState(null);
+  const [productStatus, setProductStatus] = useState("");
+  const productsDirty = useRef(false);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [asinText, setAsinText] = useState("");
+  const [asinBusy, setAsinBusy] = useState("");
   const [asinMessage, setAsinMessage] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -83,37 +91,113 @@ export default function EditCollectionPage() {
     })();
   }, [id]);
 
-  function update(field, value) {
+  // Auto-save the product list shortly after any add / remove / reorder.
+  useEffect(() => {
+    if (!productsDirty.current) return;
+    setProductStatus("Saving…");
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/collections/${id}`, {
+          method: "PUT",
+          headers: JSON_HEADERS,
+          body: JSON.stringify({ product_ids: items.map((p) => String(p.id)) }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error);
+        setProductStatus("Saved ✓ — live on the site");
+      } catch (err) {
+        setProductStatus(`Couldn't save: ${err.message}`);
+      }
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [items, id]);
+
+  // Warn before leaving with unsaved title/address/intro edits.
+  useEffect(() => {
+    if (!detailsDirty) return;
+    const handler = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [detailsDirty]);
+
+  function changeItems(updater) {
+    productsDirty.current = true;
+    setItems(updater);
+  }
+
+  function updateDetail(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
-    setDirty(true);
-    setMessage(null);
+    setDetailsDirty(true);
+    setDetailsNote(null);
+  }
+
+  async function saveDetails() {
+    setSavingDetails(true);
+    setError(null);
+    setDetailsNote(null);
+    try {
+      const res = await fetch(`/api/admin/collections/${id}`, {
+        method: "PUT",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          title: form.title,
+          slug: form.slug,
+          description: form.description,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setForm((f) => ({ ...f, slug: json.collection.slug }));
+      setDetailsDirty(false);
+      setDetailsNote("Saved ✓");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingDetails(false);
+    }
+  }
+
+  async function toggleField(field) {
+    const next = !form[field];
+    setForm((f) => ({ ...f, [field]: next }));
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/collections/${id}`, {
+        method: "PUT",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ [field]: next }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      setDetailsNote("Saved ✓");
+    } catch (err) {
+      setForm((f) => ({ ...f, [field]: !next }));
+      setError(err.message);
+    }
   }
 
   const inList = (productId) => items.some((p) => String(p.id) === String(productId));
 
   function addProduct(p) {
     if (inList(p.id)) return;
-    setItems((prev) => [...prev, p]);
-    setDirty(true);
-    setMessage(null);
+    changeItems((prev) => [...prev, p]);
   }
 
   function removeProduct(productId) {
-    setItems((prev) => prev.filter((p) => String(p.id) !== String(productId)));
-    setDirty(true);
-    setMessage(null);
+    changeItems((prev) => prev.filter((p) => String(p.id) !== String(productId)));
   }
 
   function move(index, direction) {
     const target = index + direction;
     if (target < 0 || target >= items.length) return;
-    setItems((prev) => {
+    changeItems((prev) => {
       const next = [...prev];
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
-    setDirty(true);
-    setMessage(null);
   }
 
   async function handleSearch(e) {
@@ -134,52 +218,70 @@ export default function EditCollectionPage() {
     }
   }
 
-  async function handleAddAsins() {
-    if (!asinText.trim()) return;
-    setAsinMessage(null);
-    try {
-      const res = await fetch(`/api/admin/collections/search?asins=${encodeURIComponent(asinText)}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      const fresh = (json.products || []).filter((p) => !inList(p.id));
-      if (fresh.length) {
-        setItems((prev) => [...prev, ...fresh]);
-        setDirty(true);
-        setMessage(null);
-      }
-      const missing = json.notFound || [];
-      setAsinMessage(
-        `Added ${fresh.length}.` +
-          (missing.length ? ` Not on your site yet: ${missing.join(", ")}.` : "") +
-          (json.products.length - fresh.length > 0
-            ? ` ${json.products.length - fresh.length} already on this page.`
-            : "")
-      );
-      setAsinText("");
-    } catch (err) {
-      setAsinMessage(err.message);
-    }
+  async function lookupAsins(text) {
+    const res = await fetch(`/api/admin/collections/search?asins=${encodeURIComponent(text)}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error);
+    return json;
   }
 
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    setMessage(null);
+  // Looks the ASINs up on your site; any that aren't there yet are fetched
+  // from Amazon (with your affiliate tag) first, then added to this page.
+  async function handleAddAsins() {
+    const text = asinText.trim();
+    if (!text) return;
+    setAsinMessage(null);
+    setAsinBusy("Looking up your products…");
     try {
-      const res = await fetch(`/api/admin/collections/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, product_ids: items.map((p) => String(p.id)) }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setForm((f) => ({ ...f, slug: json.collection.slug }));
-      setDirty(false);
-      setMessage("Saved ✓");
+      let json = await lookupAsins(text);
+      let missing = json.notFound || [];
+      let fetchedCount = 0;
+      const fetchErrors = [];
+
+      if (missing.length > 0) {
+        for (let i = 0; i < missing.length; i += 10) {
+          const chunk = missing.slice(i, i + 10);
+          setAsinBusy(`Fetching ${Math.min(i + 10, missing.length)} of ${missing.length} from Amazon…`);
+          try {
+            const res = await fetch("/api/amazon/bulk-import", {
+              method: "POST",
+              headers: JSON_HEADERS,
+              body: JSON.stringify({ lines: chunk, category_id: null }),
+            });
+            const r = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              fetchErrors.push(r.error || `Amazon fetch failed (${res.status})`);
+              continue;
+            }
+            fetchedCount += r.imported || 0;
+            (r.details || []).forEach((d) => fetchErrors.push(d));
+          } catch (err) {
+            fetchErrors.push(err.message);
+          }
+        }
+        json = await lookupAsins(text);
+        missing = json.notFound || [];
+      }
+
+      const fresh = (json.products || []).filter((p) => !inList(p.id));
+      if (fresh.length) changeItems((prev) => [...prev, ...fresh]);
+      const already = (json.products || []).length - fresh.length;
+
+      let msg = `Added ${fresh.length} to this page`;
+      if (fetchedCount > 0) msg += ` (${fetchedCount} newly fetched from Amazon)`;
+      msg += ".";
+      if (already > 0) msg += ` ${already} ${already === 1 ? "was" : "were"} already on the page.`;
+      if (missing.length > 0) {
+        msg += ` Couldn't fetch ${missing.length}: ${missing.join(", ")}.`;
+        if (fetchErrors.length > 0) msg += ` Amazon said: ${fetchErrors[0]}`;
+      }
+      setAsinMessage(msg);
+      // keep any that failed in the box so you can retry them
+      setAsinText(missing.join("\n"));
     } catch (err) {
-      setError(err.message);
+      setAsinMessage(err.message);
     } finally {
-      setSaving(false);
+      setAsinBusy("");
     }
   }
 
@@ -214,11 +316,13 @@ export default function EditCollectionPage() {
   }
 
   return (
-    <div className="max-w-3xl pb-24">
+    <div className="max-w-3xl pb-10">
       <Link href="/admin/collections" className="text-xs text-cream/50 hover:text-gold">
         ← All collections
       </Link>
       <h1 className="font-display text-2xl text-gold mt-1 mb-4">Edit page</h1>
+
+      {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
 
       <div className="card-surface rounded-lg p-4 mb-5 space-y-3">
         <div>
@@ -226,7 +330,7 @@ export default function EditCollectionPage() {
           <input
             type="text"
             value={form.title}
-            onChange={(e) => update("title", e.target.value)}
+            onChange={(e) => updateDetail("title", e.target.value)}
             className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
           />
         </div>
@@ -237,7 +341,7 @@ export default function EditCollectionPage() {
             <input
               type="text"
               value={form.slug}
-              onChange={(e) => update("slug", e.target.value)}
+              onChange={(e) => updateDetail("slug", e.target.value)}
               className="flex-1 min-w-0 rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
             />
           </div>
@@ -247,27 +351,44 @@ export default function EditCollectionPage() {
           <textarea
             rows={3}
             value={form.description}
-            onChange={(e) => update("description", e.target.value)}
+            onChange={(e) => updateDetail("description", e.target.value)}
             placeholder="A sentence or two shown at the top of the page"
             className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
           />
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-cream/80">Visible on the site</span>
-          <Switch
-            checked={form.is_active}
-            onChange={() => update("is_active", !form.is_active)}
-            label="Visible on the site"
-          />
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={saveDetails}
+            disabled={savingDetails || !detailsDirty}
+            className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2 text-sm disabled:opacity-50"
+          >
+            {savingDetails ? "Saving..." : "Save title, address & intro"}
+          </button>
+          {detailsDirty && <span className="text-xs text-cream/55">Not saved yet</span>}
+          {!detailsDirty && detailsNote && <span className="text-xs text-deal-green">{detailsNote}</span>}
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-cream/80">Show as a pill in the menu under the header</span>
-          <Switch
-            checked={form.show_in_menu}
-            onChange={() => update("show_in_menu", !form.show_in_menu)}
-            label="Show in menu"
-          />
+
+        <div className="border-t border-gold/15 pt-3 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-cream/80">Visible on the site</span>
+            <Switch
+              checked={form.is_active}
+              onChange={() => toggleField("is_active")}
+              label="Visible on the site"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-cream/80">Show as a pill in the menu under the header</span>
+            <Switch
+              checked={form.show_in_menu}
+              onChange={() => toggleField("show_in_menu")}
+              label="Show in menu"
+            />
+          </div>
+          <p className="text-[11px] text-cream/40">These two switches save the moment you tap them.</p>
         </div>
+
         <div className="flex flex-wrap gap-3 pt-1">
           <a
             href={`/collection/${form.slug}`}
@@ -284,9 +405,21 @@ export default function EditCollectionPage() {
       </div>
 
       <div className="card-surface rounded-lg p-4 mb-5">
-        <h2 className="font-display text-lg text-gold mb-3">
-          Products on this page ({items.length})
-        </h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+          <h2 className="font-display text-lg text-gold">Products on this page ({items.length})</h2>
+          {productStatus && (
+            <span
+              className={`text-xs ${
+                productStatus.startsWith("Couldn't") ? "text-red-400" : "text-deal-green"
+              }`}
+            >
+              {productStatus}
+            </span>
+          )}
+        </div>
+        <p className="text-[11px] text-cream/40 mb-3">
+          Products save automatically as you add, remove or reorder them.
+        </p>
         {items.length === 0 ? (
           <p className="text-sm text-cream/50">Nothing yet — add products below.</p>
         ) : (
@@ -389,10 +522,11 @@ export default function EditCollectionPage() {
 
         <div className="border-t border-gold/15 pt-3">
           <label className="block text-xs text-cream/60 mb-1">
-            Or add several at once — paste ASINs or Amazon links, one per line
+            Or add several at once — paste ASINs or Amazon links, one per line. Any that aren&apos;t on your
+            site yet are fetched from Amazon with your affiliate link.
           </label>
           <textarea
-            rows={3}
+            rows={4}
             value={asinText}
             onChange={(e) => setAsinText(e.target.value)}
             placeholder={"B0D1XXXXXX\nB0D2XXXXXX"}
@@ -401,27 +535,12 @@ export default function EditCollectionPage() {
           <button
             type="button"
             onClick={handleAddAsins}
-            disabled={!asinText.trim()}
+            disabled={!asinText.trim() || !!asinBusy}
             className="mt-2 rounded-md border border-gold/40 text-gold hover:bg-gold/10 px-4 py-2 text-sm font-semibold disabled:opacity-50"
           >
-            Add these
+            {asinBusy || "Add these"}
           </button>
-          {asinMessage && <p className="text-xs text-cream/60 mt-2">{asinMessage}</p>}
-        </div>
-      </div>
-
-      <div className="fixed bottom-0 inset-x-0 z-30 bg-ink/95 backdrop-blur border-t border-gold/20 px-4 py-3">
-        <div className="max-w-3xl flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={saving || !dirty}
-            className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-6 py-2.5 text-sm disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save changes"}
-          </button>
-          <span className="text-xs text-cream/60">
-            {error ? <span className="text-red-400">{error}</span> : message || (dirty ? "You have unsaved changes" : "")}
-          </span>
+          {asinMessage && <p className="text-xs text-cream/60 mt-2 break-words">{asinMessage}</p>}
         </div>
       </div>
     </div>

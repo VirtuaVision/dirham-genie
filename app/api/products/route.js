@@ -1,609 +1,687 @@
-"use client";
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { isAdminLoggedIn } from "@/lib/auth";
+import { fetchProductsByAsins, searchProductsByKeyword, rankBestProducts, chunkArray } from "@/lib/amazon";
+import { sendEmail } from "@/lib/email";
+import { notifyDealAlertSubscribers } from "@/lib/notifyDealAlerts";
+import slugify from "slugify";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+// The pacing added below (to avoid Amazon's Creators API rate limit) adds
+// real wall-clock time to this run, so give it plenty of headroom — this
+// endpoint checks and discovers products, which is slow. 300s is the hard
+// ceiling on Vercel's Hobby plan (no way to raise it further without
+// upgrading), so RUN_DEADLINE_MS below keeps real work well under that
+// ceiling and lets the code exit cleanly instead of getting killed mid-run.
+export const maxDuration = 300;
+const RUN_DEADLINE_MS = 250 * 1000;
 
-function Switch({ checked, onChange, label }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={onChange}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-        checked ? "bg-gold" : "bg-white/20"
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-cream transition-transform ${
-          checked ? "translate-x-6" : "translate-x-1"
-        }`}
-      />
-    </button>
+function timeLeft(startedAt) {
+  return RUN_DEADLINE_MS - (Date.now() - startedAt);
+}
+
+const NEW_PRODUCTS_PER_CATEGORY = 4;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function looksLikeRateLimit(err) {
+  const msg = (err?.message || "").toLowerCase();
+  return msg.includes("rate limit") || msg.includes("429") || msg.includes("too many requests");
+}
+
+// Amazon's searchItems always returns the same top-10 for an identical
+// keyword+page. Without rotating something, discovery finds everything it's
+// ever going to find within the first ~week and then permanently returns 0
+// new products, which is what was happening. Rotating the page (1-5) and a
+// keyword modifier by day of year means each day's run looks at a
+// different slice of results instead of re-asking the same question.
+const DAY_OF_YEAR = Math.floor(
+  (Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000
+);
+const SEARCH_PAGE = (DAY_OF_YEAR % 5) + 1; // pages 1-5
+const KEYWORD_VARIANTS = ["", " deals", " bestsellers", " new arrivals", " top rated"];
+const KEYWORD_SUFFIX = KEYWORD_VARIANTS[DAY_OF_YEAR % KEYWORD_VARIANTS.length];
+
+// A bare category name ("Electronics") is broad and tends to return the
+// same generic, repetitive results. Specific product terms turn up far
+// more varied, relevant items. One gets picked per category per day
+// (rotating, so different terms get their turn across the week) instead
+// of always searching the raw category name.
+const CATEGORY_KEYWORD_POOL = {
+  electronics: [
+    "wireless earbuds",
+    "bluetooth speaker",
+    "power bank",
+    "smart watch",
+    "phone charger",
+    "laptop bag",
+    "gaming headset",
+    "webcam",
+  ],
+  "home-kitchen": [
+    "air fryer",
+    "coffee maker",
+    "kitchen knife set",
+    "storage organizer",
+    "bedding set",
+    "vacuum cleaner",
+    "blender",
+    "cookware set",
+  ],
+  "beauty-personal-care": [
+    "skincare set",
+    "hair dryer",
+    "electric shaver",
+    "makeup brush set",
+    "perfume",
+    "hair straightener",
+    "face serum",
+    "electric toothbrush",
+  ],
+  fashion: [
+    "running shoes",
+    "backpack",
+    "sunglasses",
+    "wallet",
+    "watch",
+    "handbag",
+    "sneakers",
+    "jacket",
+  ],
+  "toys-games": [
+    "building blocks",
+    "board game",
+    "remote control car",
+    "puzzle",
+    "action figure",
+    "kids bicycle",
+    "outdoor play set",
+    "educational toy",
+  ],
+  "sports-outdoors": [
+    "yoga mat",
+    "camping tent",
+    "resistance bands",
+    "water bottle",
+    "cycling helmet",
+    "dumbbell set",
+    "hiking backpack",
+    "fitness tracker",
+  ],
+};
+
+// Amazon pays wildly different commission rates by category (Fashion/
+// Apparel/Shoes/Watches ~50%, Beauty ~19%, Home/Kitchen/Sports ~12%,
+// Toys ~10%, Electronics ~4% — the lowest tier). Searching every category
+// with equal effort ignores that. This weights discovery toward the
+// categories that actually pay: high-commission categories get searched
+// with more keyword picks per day; low-commission ones get skipped on
+// some days entirely to make room, rather than blowing up total run time.
+const CATEGORY_WEIGHT = {
+  fashion: { picks: 3, everyNDays: 1 }, // Apparel/Shoes/Watches — 50%
+  "beauty-personal-care": { picks: 2, everyNDays: 1 }, // Beauty — 19%
+  "home-kitchen": { picks: 1, everyNDays: 1 }, // Home/Kitchen — 12%
+  "sports-outdoors": { picks: 1, everyNDays: 1 }, // Sporting Goods — 12%
+  "toys-games": { picks: 1, everyNDays: 2 }, // Toys — 10%
+  electronics: { picks: 1, everyNDays: 3 }, // Electronics/Wireless — ~4%, lowest
+};
+const DEFAULT_WEIGHT = { picks: 1, everyNDays: 1 };
+
+/** Returns the list of keywords to search for this category today (can be
+ *  more than one for high-commission categories, or empty if today is a
+ *  skip day for a low-commission one). */
+function keywordsForCategoryToday(category) {
+  const weight = CATEGORY_WEIGHT[category.slug] || DEFAULT_WEIGHT;
+  if (DAY_OF_YEAR % weight.everyNDays !== 0) return [];
+
+  const pool = CATEGORY_KEYWORD_POOL[category.slug];
+  if (!pool || pool.length === 0) return [`${category.name}${KEYWORD_SUFFIX}`];
+
+  const picks = [];
+  for (let i = 0; i < weight.picks; i++) {
+    picks.push(pool[(DAY_OF_YEAR + i) % pool.length]);
+  }
+  return picks;
+}
+
+/**
+ * Amazon's Creators API throttles requests per second. Firing a search per
+ * category back-to-back (as this discovery loop does) reliably trips that
+ * limit after the first few categories, silently killing discovery for the
+ * rest of the run. This wraps a search call with pacing + one retry after a
+ * longer backoff if it does get rate-limited.
+ */
+async function searchWithPacing(keyword, page = 1) {
+  try {
+    return await searchProductsByKeyword(keyword, page);
+  } catch (err) {
+    if (!looksLikeRateLimit(err)) throw err;
+    await sleep(3000);
+    return await searchProductsByKeyword(keyword, page);
+  }
+}
+
+const FILLER_WORDS = new Set([
+  "the", "a", "an", "with", "for", "and", "of", "to", "in", "on",
+  "pack", "set", "pcs", "piece", "pieces", "new", "premium",
+]);
+
+/** Reduces a title to a comparable set of meaningful words — strips
+ *  punctuation, casing, and common filler/marketing words so that near-
+ *  identical listings ("Wireless Earbuds Bluetooth 5.3" vs "Bluetooth
+ *  Wireless Earbuds V5.3, New") are recognized as duplicates. */
+function titleTokens(title) {
+  return new Set(
+    (title || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !FILLER_WORDS.has(w))
   );
 }
 
-function Thumb({ src }) {
-  return (
-    <div className="w-12 h-12 shrink-0 rounded bg-white/5 overflow-hidden">
-      {src && (
-        <img
-          src={src}
-          alt=""
-          className="w-full h-full object-contain p-1"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-          }}
-        />
-      )}
-    </div>
-  );
+function tokenOverlap(setA, setB) {
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let shared = 0;
+  for (const w of setA) if (setB.has(w)) shared += 1;
+  return shared / Math.min(setA.size, setB.size);
 }
 
-const JSON_HEADERS = { "Content-Type": "application/json" };
+/** True if this item is a near-duplicate of something already in the same
+ *  category (same product, slightly different listing/title) — catches
+ *  cases the ASIN-based dedupe misses because it's a different ASIN
+ *  entirely (different seller/variant of the same item). */
+function isNearDuplicate(item, existingTitlesByCategory, categoryId) {
+  const candidates = existingTitlesByCategory.get(categoryId) || [];
+  const itemTokens = titleTokens(item.title);
+  return candidates.some((tokens) => tokenOverlap(itemTokens, tokens) >= 0.75);
+}
 
-export default function EditCollectionPage() {
-  const { id } = useParams();
-  const [form, setForm] = useState(null);
-  const [items, setItems] = useState([]); // products on this page, in order
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+async function uniqueSlug(title) {
+  const base = slugify(title, { lower: true, strict: true }) || "product";
+  let slug = base;
+  let attempt = 0;
+  while (true) {
+    const { data: existing } = await supabaseAdmin
+      .from("products")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!existing) return slug;
+    attempt += 1;
+    slug = `${base}-${attempt}`;
+  }
+}
 
-  // Title / web address / intro are saved with a button. The two switches and
-  // the product list save by themselves the moment you change them.
-  const [detailsDirty, setDetailsDirty] = useState(false);
-  const [savingDetails, setSavingDetails] = useState(false);
-  const [detailsNote, setDetailsNote] = useState(null);
-  const [productStatus, setProductStatus] = useState("");
-  const productsDirty = useRef(false);
+async function insertDiscoveredProduct(item, categoryId) {
+  const slug = await uniqueSlug(item.title);
+  return supabaseAdmin
+    .from("products")
+    .insert({
+      title: item.title,
+      slug,
+      brand: item.brand,
+      description: item.description || null,
+      image_url: item.image_url,
+      additional_images: item.additional_images || null,
+      price: item.price,
+      list_price: item.list_price,
+      currency: item.currency,
+      asin: item.asin,
+      affiliate_url: item.affiliate_url,
+      category_id: categoryId,
+      source: "amazon_api",
+      is_active: true,
+      in_stock: item.in_stock !== false,
+      amazon_category: item.amazon_category || null,
+      amazon_sales_rank: item.amazon_sales_rank || null,
+      rating: item.rating,
+      review_count: item.review_count,
+      last_synced_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+}
 
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [asinText, setAsinText] = useState("");
-  const [asinBusy, setAsinBusy] = useState("");
-  const [asinMessage, setAsinMessage] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [sorting, setSorting] = useState(false);
-  const [sortMessage, setSortMessage] = useState(null);
+const MAX_MEGA_DEALS_PER_DAY = 6;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`/api/admin/collections/${id}`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error);
-        const c = json.collection;
-        setForm({
-          title: c.title,
-          slug: c.slug,
-          description: c.description || "",
-          is_active: c.is_active,
-          show_in_menu: c.show_in_menu,
-        });
-        setItems(json.products || []);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [id]);
+async function discoverNewDeals(startedAt) {
+  let discovered = 0;
+  let megaDealsFound = 0;
+  let discoveryErrors = 0;
+  let stoppedEarly = false;
+  const details = [];
 
-  // Auto-save the product list shortly after any add / remove / reorder.
-  useEffect(() => {
-    if (!productsDirty.current) return;
-    setProductStatus("Saving…");
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/admin/collections/${id}`, {
-          method: "PUT",
-          headers: JSON_HEADERS,
-          body: JSON.stringify({ product_ids: items.map((p) => String(p.id)) }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error);
-        setProductStatus("Saved ✓ — live on the site");
-      } catch (err) {
-        setProductStatus(`Couldn't save: ${err.message}`);
-      }
-    }, 700);
-    return () => clearTimeout(timer);
-  }, [items, id]);
+  const { data: settingsRows } = await supabaseAdmin
+    .from("site_settings")
+    .select("key, value")
+    .in("key", ["discovery_enabled", "discovery_keywords"]);
+  const settings = {};
+  (settingsRows || []).forEach((row) => (settings[row.key] = row.value));
 
-  // Warn before leaving with unsaved title/address/intro edits.
-  useEffect(() => {
-    if (!detailsDirty) return;
-    const handler = (e) => {
-      e.preventDefault();
-      e.returnValue = "";
+  // Default to enabled if the setting has never been saved.
+  const discoveryEnabled = settings.discovery_enabled !== "false";
+  const customKeywords = (settings.discovery_keywords || "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+
+  if (!discoveryEnabled) {
+    return {
+      discovered: 0,
+      megaDealsFound: 0,
+      discoveryErrors: 0,
+      stoppedEarly: false,
+      details: ["Auto-discovery is paused (toggle it back on in Sync Logs to resume)."],
     };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [detailsDirty]);
-
-  function changeItems(updater) {
-    productsDirty.current = true;
-    setItems(updater);
   }
 
-  function updateDetail(field, value) {
-    setForm((f) => ({ ...f, [field]: value }));
-    setDetailsDirty(true);
-    setDetailsNote(null);
-  }
+  const { data: allCategories } = await supabaseAdmin.from("categories").select("id, name, slug");
+  const megaDealsCategory = (allCategories || []).find((c) => c.slug === "mega-deals");
+  const genieChoiceCategory = (allCategories || []).find((c) => c.slug === "genies-choice");
+  const regularCategories = (allCategories || []).filter(
+    (c) => c.slug !== "mega-deals" && c.slug !== "genies-choice"
+  );
 
-  async function saveDetails() {
-    setSavingDetails(true);
-    setError(null);
-    setDetailsNote(null);
-    try {
-      const res = await fetch(`/api/admin/collections/${id}`, {
-        method: "PUT",
-        headers: JSON_HEADERS,
-        body: JSON.stringify({
-          title: form.title,
-          slug: form.slug,
-          description: form.description,
-        }),
+  const { data: existingProducts } = await supabaseAdmin.from("products").select("asin").not("asin", "is", null);
+  const existingAsins = new Set((existingProducts || []).map((p) => p.asin));
+
+  // For near-duplicate detection: existing product titles, tokenized and
+  // grouped by category, so a listing that slipped past the ASIN check
+  // (different seller/variant of the same item) still gets caught.
+  const { data: titleRows } = await supabaseAdmin
+    .from("products")
+    .select("title, category_id")
+    .eq("is_active", true);
+  const existingTitlesByCategory = new Map();
+  (titleRows || []).forEach((row) => {
+    if (!row.category_id) return;
+    const list = existingTitlesByCategory.get(row.category_id) || [];
+    list.push(titleTokens(row.title));
+    existingTitlesByCategory.set(row.category_id, list);
+  });
+
+  // Smarter discovery: give one bonus keyword pick today to whichever
+  // category has driven the most affiliate clicks in the last 30 days —
+  // actual visitor interest, not just Amazon's commission table, gets a
+  // say in where discovery effort goes.
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentClicks } = await supabaseAdmin
+    .from("clicks")
+    .select("product_id")
+    .gte("created_at", thirtyDaysAgo);
+  let topPerformingCategoryId = null;
+  if (recentClicks && recentClicks.length > 0) {
+    const clickedProductIds = [...new Set(recentClicks.map((c) => c.product_id).filter(Boolean))];
+    if (clickedProductIds.length > 0) {
+      const { data: clickedProducts } = await supabaseAdmin
+        .from("products")
+        .select("id, category_id")
+        .in("id", clickedProductIds);
+      const categoryClickCounts = {};
+      const productCategory = new Map((clickedProducts || []).map((p) => [p.id, p.category_id]));
+      recentClicks.forEach((c) => {
+        const catId = productCategory.get(c.product_id);
+        if (!catId) return;
+        categoryClickCounts[catId] = (categoryClickCounts[catId] || 0) + 1;
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setForm((f) => ({ ...f, slug: json.collection.slug }));
-      setDetailsDirty(false);
-      setDetailsNote("Saved ✓");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSavingDetails(false);
+      const ranked = Object.entries(categoryClickCounts).sort((a, b) => b[1] - a[1]);
+      if (ranked.length > 0) topPerformingCategoryId = ranked[0][0];
     }
   }
 
-  async function toggleField(field) {
-    const next = !form[field];
-    setForm((f) => ({ ...f, [field]: next }));
-    setError(null);
-    try {
-      const res = await fetch(`/api/admin/collections/${id}`, {
-        method: "PUT",
-        headers: JSON_HEADERS,
-        body: JSON.stringify({ [field]: next }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setDetailsNote("Saved ✓");
-    } catch (err) {
-      setForm((f) => ({ ...f, [field]: !next }));
-      setError(err.message);
+  let megaDealsToday = 0;
+
+  for (const category of regularCategories) {
+    if (timeLeft(startedAt) < 15000) {
+      stoppedEarly = true;
+      details.push(`Stopped discovery early to stay under the time limit — resumes with remaining categories next run.`);
+      break;
     }
-  }
 
-  const uncategorised = items.filter((p) => !p.category_id).length;
+    let todaysKeywords = keywordsForCategoryToday(category);
 
-  // Puts products that have no category into the best-fitting one, so they
-  // show under the right heading instead of "More deals".
-  async function sortUncategorised() {
-    setSorting(true);
-    setSortMessage(null);
-    try {
-      const res = await fetch("/api/admin/categorize-products", {
-        method: "POST",
-        headers: JSON_HEADERS,
-        body: JSON.stringify({
-          product_ids: items.filter((p) => !p.category_id).map((p) => String(p.id)),
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      const done = new Set(json.updatedIds || []);
-      setItems((prev) => prev.map((p) => (done.has(String(p.id)) ? { ...p, category_id: "set" } : p)));
-      const parts = Object.entries(json.byCategory || {})
-        .map(([name, count]) => `${name} ${count}`)
-        .join(", ");
-      if (json.updated > 0) {
-        setSortMessage(
-          `Sorted ${json.updated}: ${parts}.` +
-            (json.unsure > 0
-              ? ` ${json.unsure} couldn't be told apart — set those in All Products.`
-              : "")
-        );
-      } else {
-        setSortMessage(
-          `Couldn't tell what ${json.unsure} of them are — set their category in All Products.`
-        );
+    // Click-performance bonus: today's top-clicked category gets one extra
+    // keyword pick, even on an otherwise skipped/low-frequency day.
+    if (category.id === topPerformingCategoryId) {
+      const pool = CATEGORY_KEYWORD_POOL[category.slug];
+      const bonusKeyword = pool ? pool[(DAY_OF_YEAR + 7) % pool.length] : `${category.name} popular`;
+      if (todaysKeywords.length === 0) {
+        details.push(`${category.name}: normally skipped today, but ran anyway — it's your top-clicked category this month.`);
       }
-    } catch (err) {
-      setSortMessage(err.message);
-    } finally {
-      setSorting(false);
+      todaysKeywords = [...todaysKeywords, bonusKeyword];
     }
-  }
 
-  const inList = (productId) => items.some((p) => String(p.id) === String(productId));
-
-  function addProduct(p) {
-    if (inList(p.id)) return;
-    changeItems((prev) => [...prev, p]);
-  }
-
-  function removeProduct(productId) {
-    changeItems((prev) => prev.filter((p) => String(p.id) !== String(productId)));
-  }
-
-  function move(index, direction) {
-    const target = index + direction;
-    if (target < 0 || target >= items.length) return;
-    changeItems((prev) => {
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
-    });
-  }
-
-  async function handleSearch(e) {
-    e.preventDefault();
-    if (!query.trim()) return;
-    setSearching(true);
-    setSearched(false);
-    try {
-      const res = await fetch(`/api/admin/collections/search?q=${encodeURIComponent(query.trim())}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      setResults(json.products || []);
-      setSearched(true);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSearching(false);
+    if (todaysKeywords.length === 0) {
+      details.push(`${category.name}: skipped today (lower-commission category, runs less often).`);
+      continue;
     }
-  }
 
-  async function lookupAsins(text) {
-    const res = await fetch(`/api/admin/collections/search?asins=${encodeURIComponent(text)}`);
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error);
-    return json;
-  }
+    if (megaDealsCategory && megaDealsToday < MAX_MEGA_DEALS_PER_DAY) {
+      try {
+        await sleep(1000);
+        const dealResults = await searchWithPacing(`${todaysKeywords[0]} clearance deal sale`, SEARCH_PAGE);
+        const freshDeals = dealResults
+          .filter((p) => !existingAsins.has(p.asin))
+          .filter((p) => !isNearDuplicate(p, existingTitlesByCategory, megaDealsCategory.id));
+        const megaPicks = rankBestProducts(freshDeals, 1, 0.5);
 
-  // Looks the ASINs up on your site; any that aren't there yet are fetched
-  // from Amazon (with your affiliate tag) first, then added to this page.
-  async function handleAddAsins() {
-    const text = asinText.trim();
-    if (!text) return;
-    setAsinMessage(null);
-    setAsinBusy("Looking up your products…");
-    try {
-      let json = await lookupAsins(text);
-      let missing = json.notFound || [];
-      let fetchedCount = 0;
-      const fetchErrors = [];
-
-      if (missing.length > 0) {
-        for (let i = 0; i < missing.length; i += 10) {
-          const chunk = missing.slice(i, i + 10);
-          setAsinBusy(`Fetching ${Math.min(i + 10, missing.length)} of ${missing.length} from Amazon…`);
+        for (const item of megaPicks) {
           try {
-            const res = await fetch("/api/amazon/bulk-import", {
-              method: "POST",
-              headers: JSON_HEADERS,
-              body: JSON.stringify({ lines: chunk, category_id: null }),
-            });
-            const r = await res.json().catch(() => ({}));
-            if (!res.ok) {
-              fetchErrors.push(r.error || `Amazon fetch failed (${res.status})`);
-              continue;
+            const { data: inserted, error } = await insertDiscoveredProduct(item, megaDealsCategory.id);
+            if (error) throw error;
+            existingAsins.add(item.asin);
+            megaDealsToday += 1;
+            megaDealsFound += 1;
+            discovered += 1;
+            // A mega deal (50%+ off) is exciting enough to tell subscribers
+            // about right away, rather than waiting for them to browse in.
+            if (inserted) {
+              notifyDealAlertSubscribers(inserted).catch(() => {});
             }
-            fetchedCount += r.imported || 0;
-            (r.details || []).forEach((d) => fetchErrors.push(d));
           } catch (err) {
-            fetchErrors.push(err.message);
+            discoveryErrors += 1;
+            details.push(`Mega deal insert (${category.name}): ${err.message}`);
           }
         }
-        json = await lookupAsins(text);
-        missing = json.notFound || [];
+      } catch (err) {
+        discoveryErrors += 1;
+        details.push(`Mega deal search (${category.name}): ${err.message}`);
       }
+    }
 
-      const fresh = (json.products || []).filter((p) => !inList(p.id));
-      if (fresh.length) changeItems((prev) => [...prev, ...fresh]);
-      const already = (json.products || []).length - fresh.length;
+    // Higher-commission categories (Fashion, Beauty) search multiple
+    // keywords per day here; lower-commission ones search just one.
+    for (const keyword of todaysKeywords) {
+      try {
+        await sleep(1000);
+        const results = await searchWithPacing(keyword, SEARCH_PAGE);
+        const fresh = results
+          .filter((p) => !existingAsins.has(p.asin))
+          .filter((p) => !isNearDuplicate(p, existingTitlesByCategory, category.id));
+        const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
 
-      let msg = `Added ${fresh.length} to this page`;
-      if (fetchedCount > 0) msg += ` (${fetchedCount} newly fetched from Amazon)`;
-      msg += ".";
-      if (already > 0) msg += ` ${already} ${already === 1 ? "was" : "were"} already on the page.`;
-      if (missing.length > 0) {
-        msg += ` Couldn't fetch ${missing.length}: ${missing.join(", ")}.`;
-        if (fetchErrors.length > 0) msg += ` Amazon said: ${fetchErrors[0]}`;
+        for (const item of best) {
+          try {
+            const { error } = await insertDiscoveredProduct(item, category.id);
+            if (error) throw error;
+            existingAsins.add(item.asin);
+            discovered += 1;
+          } catch (err) {
+            discoveryErrors += 1;
+            details.push(`Discovery insert (${category.name}): ${err.message}`);
+          }
+        }
+      } catch (err) {
+        discoveryErrors += 1;
+        details.push(`Discovery search (${category.name}, "${keyword}"): ${err.message}`);
       }
-      setAsinMessage(msg);
-      // keep any that failed in the box so you can retry them
-      setAsinText(missing.join("\n"));
-    } catch (err) {
-      setAsinMessage(err.message);
-    } finally {
-      setAsinBusy("");
     }
   }
 
-  async function copyLink() {
-    const link = `${window.location.origin}/collection/${form.slug}`;
+  // Custom keywords the admin typed in — searched directly, independent of
+  // any category, so this works even for things that don't map neatly to
+  // an existing category. Landed in Genie's Choice as a catch-all.
+  for (const keyword of customKeywords) {
+    if (timeLeft(startedAt) < 15000) {
+      stoppedEarly = true;
+      details.push(`Stopped custom keyword search early to stay under the time limit.`);
+      break;
+    }
     try {
-      await navigator.clipboard.writeText(link);
-    } catch {
-      const el = document.createElement("textarea");
-      el.value = link;
-      el.style.position = "fixed";
-      el.style.opacity = "0";
-      document.body.appendChild(el);
-      el.select();
-      document.execCommand("copy");
-      document.body.removeChild(el);
+      await sleep(1000);
+      const results = await searchWithPacing(keyword, SEARCH_PAGE);
+      const fresh = results
+        .filter((p) => !existingAsins.has(p.asin))
+        .filter((p) => !isNearDuplicate(p, existingTitlesByCategory, genieChoiceCategory?.id));
+      const best = rankBestProducts(fresh, NEW_PRODUCTS_PER_CATEGORY, 0.1);
+
+      for (const item of best) {
+        try {
+          const { error } = await insertDiscoveredProduct(item, genieChoiceCategory?.id || null);
+          if (error) throw error;
+          existingAsins.add(item.asin);
+          discovered += 1;
+        } catch (err) {
+          discoveryErrors += 1;
+          details.push(`Custom keyword insert ("${keyword}"): ${err.message}`);
+        }
+      }
+    } catch (err) {
+      discoveryErrors += 1;
+      details.push(`Custom keyword search ("${keyword}"): ${err.message}`);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
-  if (loading) return <p className="text-cream/50 text-sm">Loading…</p>;
-  if (!form) {
-    return (
-      <div>
-        <p className="text-red-400 text-sm mb-3">{error || "Page not found."}</p>
-        <Link href="/admin/collections" className="text-gold text-sm underline">
-          ← Back to Collections
-        </Link>
-      </div>
-    );
+  return { discovered, megaDealsFound, discoveryErrors, stoppedEarly, details };
+}
+
+async function demoteStaleMegaDeals() {
+  const { data: cats } = await supabaseAdmin.from("categories").select("id, slug");
+  const megaDeals = (cats || []).find((c) => c.slug === "mega-deals");
+  const fallback = (cats || []).find((c) => c.slug === "genies-choice");
+  if (!megaDeals || !fallback) return 0;
+
+  const { data: members } = await supabaseAdmin
+    .from("products")
+    .select("id, price, list_price")
+    .eq("category_id", megaDeals.id);
+
+  let demoted = 0;
+  for (const p of members || []) {
+    const discount =
+      p.list_price && p.price && p.list_price > p.price
+        ? (p.list_price - p.price) / p.list_price
+        : 0;
+    if (discount < 0.5) {
+      await supabaseAdmin.from("products").update({ category_id: fallback.id }).eq("id", p.id);
+      demoted += 1;
+    }
+  }
+  return demoted;
+}
+
+async function runSync() {
+  const startedAt = Date.now();
+  let checked = 0;
+  let updated = 0;
+  let errors = 0;
+  let deactivated = 0;
+  let priceRefreshStoppedEarly = false;
+  const errorMessages = [];
+
+  // Oldest-checked-first (never-synced products first): if a run gets cut
+  // short by the time budget, tomorrow's run naturally continues with
+  // whatever's still overdue instead of always re-checking the same first
+  // page and never reaching the rest of the catalog.
+  const { data: products, count: totalActiveCount } = await supabaseAdmin
+    .from("products")
+    .select("id, asin, price, title, sync_miss_count", { count: "exact" })
+    .eq("source", "amazon_api")
+    .eq("is_active", true)
+    .not("asin", "is", null)
+    .order("last_synced_at", { ascending: true, nullsFirst: true });
+
+  const byAsin = new Map((products || []).map((p) => [p.asin, p]));
+  const asinBatches = chunkArray([...byAsin.keys()], 10);
+
+  for (const batch of asinBatches) {
+    // Reserve time for discovery + cleanup + writing the log entry below,
+    // rather than spending the entire budget on price refresh alone.
+    if (timeLeft(startedAt) < 100000) {
+      priceRefreshStoppedEarly = true;
+      errorMessages.push(
+        `Stopped price refresh early to stay under the time limit — checked ${checked} of ${totalActiveCount ?? "?"} products (oldest-checked-first, so this continues with the rest next run).`
+      );
+      break;
+    }
+    checked += batch.length;
+    try {
+      const freshItems = await fetchProductsByAsins(batch);
+      const foundAsins = new Set(freshItems.map((f) => f.asin));
+
+      for (const fresh of freshItems) {
+        const product = byAsin.get(fresh.asin);
+        if (!product) continue;
+
+        const priceChanged = fresh.price && fresh.price !== product.price;
+
+        await supabaseAdmin
+          .from("products")
+          .update({
+            price: fresh.price,
+            list_price: fresh.list_price,
+            image_url: fresh.image_url,
+            additional_images: fresh.additional_images || null,
+            rating: fresh.rating,
+            review_count: fresh.review_count,
+            in_stock: fresh.in_stock !== false,
+            amazon_category: fresh.amazon_category || null,
+            amazon_sales_rank: fresh.amazon_sales_rank || null,
+            last_synced_at: new Date().toISOString(),
+            sync_miss_count: 0,
+          })
+          .eq("id", product.id);
+
+        if (priceChanged) {
+          await supabaseAdmin
+            .from("price_history")
+            .insert({ product_id: product.id, price: fresh.price });
+          updated += 1;
+        }
+      }
+
+      // Anything requested but not returned this run is either delisted or
+      // had a transient hiccup. Track consecutive misses per product and
+      // only deactivate after 3 in a row, so one flaky API response
+      // doesn't take a live product off the site.
+      for (const asin of batch) {
+        if (foundAsins.has(asin)) continue;
+        const product = byAsin.get(asin);
+        if (!product) continue;
+
+        const missCount = (product.sync_miss_count || 0) + 1;
+        if (missCount >= 3) {
+          await supabaseAdmin
+            .from("products")
+            .update({ is_active: false, sync_miss_count: missCount, last_synced_at: new Date().toISOString() })
+            .eq("id", product.id);
+          deactivated += 1;
+          errorMessages.push(
+            `Deactivated "${product.title}" (${asin}) — not found on Amazon 3 syncs in a row, likely delisted.`
+          );
+        } else {
+          await supabaseAdmin.from("products").update({ sync_miss_count: missCount }).eq("id", product.id);
+        }
+      }
+    } catch (err) {
+      errors += batch.length;
+      errorMessages.push(`Batch [${batch.join(", ")}]: ${err.message}`);
+    }
   }
 
-  return (
-    <div className="max-w-3xl pb-10">
-      <Link href="/admin/collections" className="text-xs text-cream/50 hover:text-gold">
-        ← All collections
-      </Link>
-      <h1 className="font-display text-2xl text-gold mt-1 mb-4">Edit page</h1>
+  const demoted = await demoteStaleMegaDeals();
 
-      {error && <p className="text-sm text-red-400 mb-3">{error}</p>}
+  // If price refresh already used up the reserved time, skip discovery
+  // this run rather than risk running past the deadline — it'll get its
+  // turn once price refresh isn't running long.
+  let discovered = 0, megaDealsFound = 0, discoveryErrors = 0, discoveryStoppedEarly = false;
+  let discoveryDetails = [];
+  if (timeLeft(startedAt) > 15000) {
+    ({ discovered, megaDealsFound, discoveryErrors, stoppedEarly: discoveryStoppedEarly, details: discoveryDetails } =
+      await discoverNewDeals(startedAt));
+  } else {
+    discoveryDetails = ["Skipped discovery this run — price refresh used the full time budget."];
+  }
+  errorMessages.push(...discoveryDetails);
 
-      <div className="card-surface rounded-lg p-4 mb-5 space-y-3">
-        <div>
-          <label className="block text-xs text-cream/60 mb-1">Page title</label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => updateDetail("title", e.target.value)}
-            className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-          />
+  const nowIso = new Date().toISOString();
+  await supabaseAdmin
+    .from("products")
+    .update({ is_lightning_deal: false })
+    .lt("deal_expires_at", nowIso)
+    .eq("is_lightning_deal", true);
+
+  await supabaseAdmin
+    .from("coupons")
+    .update({ is_active: false })
+    .lt("expires_at", nowIso)
+    .eq("is_active", true);
+
+  const stoppedEarly = priceRefreshStoppedEarly || discoveryStoppedEarly;
+  const summary = {
+    products_checked: checked,
+    products_updated: updated,
+    new_products_discovered: discovered,
+    errors: errors + discoveryErrors,
+    details:
+      `Discovered ${discovered} new product(s) across categories (${megaDealsFound} of them 50%+ off, into Mega Deals). ${demoted} product(s) moved out of Mega Deals as they no longer qualify. ${deactivated} product(s) auto-deactivated as delisted.` +
+      (stoppedEarly ? ` ⏱ Run stopped early to stay under the time limit — continues automatically next run.` : ``) +
+      `\n` +
+      errorMessages.join("\n") || null,
+  };
+
+  await supabaseAdmin.from("sync_logs").insert(summary);
+
+  // Fire-and-forget: sendEmail() itself no-ops quietly if RESEND_API_KEY or
+  // ADMIN_NOTIFICATION_EMAIL aren't set, so this is safe either way.
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
+  if (adminEmail) {
+    sendEmail({
+      to: adminEmail,
+      subject: `Dirham Genie sync: ${discovered} new, ${updated} updated, ${summary.errors} errors`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;">
+          <h2 style="color:#8A6D1F;">🪔 Daily Sync Summary</h2>
+          <ul style="line-height:1.8;">
+            <li>Checked: ${checked}</li>
+            <li>Prices updated: ${updated}</li>
+            <li>New products discovered: ${discovered} (${megaDealsFound} mega deals)</li>
+            <li>Deactivated (delisted): ${deactivated}</li>
+            <li>Errors: ${summary.errors}</li>
+          </ul>
+          <p style="font-size:12px;color:#888;">See full details in Sync Logs.</p>
         </div>
-        <div>
-          <label className="block text-xs text-cream/60 mb-1">Web address</label>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-cream/45 shrink-0">/collection/</span>
-            <input
-              type="text"
-              value={form.slug}
-              onChange={(e) => updateDetail("slug", e.target.value)}
-              className="flex-1 min-w-0 rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs text-cream/60 mb-1">Short intro (optional)</label>
-          <textarea
-            rows={3}
-            value={form.description}
-            onChange={(e) => updateDetail("description", e.target.value)}
-            placeholder="A sentence or two shown at the top of the page"
-            className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-          />
-        </div>
+      `,
+    }).catch(() => {});
+  }
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={saveDetails}
-            disabled={savingDetails || !detailsDirty}
-            className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-5 py-2 text-sm disabled:opacity-50"
-          >
-            {savingDetails ? "Saving..." : "Save title, address & intro"}
-          </button>
-          {detailsDirty && <span className="text-xs text-cream/55">Not saved yet</span>}
-          {!detailsDirty && detailsNote && <span className="text-xs text-deal-green">{detailsNote}</span>}
-        </div>
+  return summary;
+}
 
-        <div className="border-t border-gold/15 pt-3 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-cream/80">Visible on the site</span>
-            <Switch
-              checked={form.is_active}
-              onChange={() => toggleField("is_active")}
-              label="Visible on the site"
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-cream/80">Show as a pill in the menu under the header</span>
-            <Switch
-              checked={form.show_in_menu}
-              onChange={() => toggleField("show_in_menu")}
-              label="Show in menu"
-            />
-          </div>
-          <p className="text-[11px] text-cream/40">These two switches save the moment you tap them.</p>
-        </div>
+async function runSyncWithGuaranteedLog() {
+  try {
+    return await runSync();
+  } catch (err) {
+    // Whatever failed happened before runSync's own summary/log could be
+    // written — write a minimal entry now so this run is still visible in
+    // Sync Logs instead of leaving a silent gap.
+    const emergency = {
+      products_checked: 0,
+      products_updated: 0,
+      new_products_discovered: 0,
+      errors: 1,
+      details: `Sync run failed before completing: ${err.message}`,
+    };
+    await supabaseAdmin.from("sync_logs").insert(emergency).catch(() => {});
+    return emergency;
+  }
+}
 
-        <div className="flex flex-wrap gap-3 pt-1">
-          <a
-            href={`/collection/${form.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gold underline"
-          >
-            View page ↗
-          </a>
-          <button type="button" onClick={copyLink} className="text-xs text-gold underline">
-            {copied ? "Link copied ✓" : "Copy page link"}
-          </button>
-        </div>
-      </div>
+export async function GET(request) {
+  const authHeader = request.headers.get("authorization");
+  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const summary = await runSyncWithGuaranteedLog();
+  return NextResponse.json(summary);
+}
 
-      <div className="card-surface rounded-lg p-4 mb-5">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-          <h2 className="font-display text-lg text-gold">Products on this page ({items.length})</h2>
-          {productStatus && (
-            <span
-              className={`text-xs ${
-                productStatus.startsWith("Couldn't") ? "text-red-400" : "text-deal-green"
-              }`}
-            >
-              {productStatus}
-            </span>
-          )}
-        </div>
-        <p className="text-[11px] text-cream/40 mb-3">
-          Products save automatically as you add, remove or reorder them.
-        </p>
-        {uncategorised > 0 && (
-          <div className="rounded-md border border-gold/30 bg-gold/5 p-3 mb-3">
-            <p className="text-xs text-cream/80 mb-2">
-              {uncategorised} product{uncategorised === 1 ? "" : "s"} on this page{" "}
-              {uncategorised === 1 ? "has" : "have"} no category, so {uncategorised === 1 ? "it shows" : "they show"}{" "}
-              under &ldquo;More deals&rdquo;.
-            </p>
-            <button
-              type="button"
-              onClick={sortUncategorised}
-              disabled={sorting}
-              className="rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-4 py-2 text-xs disabled:opacity-60"
-            >
-              {sorting ? "Sorting…" : "Sort them into categories automatically"}
-            </button>
-          </div>
-        )}
-        {sortMessage && <p className="text-xs text-cream/70 mb-3">{sortMessage}</p>}
-        {items.length === 0 ? (
-          <p className="text-sm text-cream/50">Nothing yet — add products below.</p>
-        ) : (
-          <div className="space-y-2">
-            {items.map((p, i) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-2 rounded-md border border-gold/15 bg-ink-lighter px-2 py-2"
-              >
-                <Thumb src={p.image_url} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-cream/90 line-clamp-2">{p.title}</p>
-                  <p className="text-[11px] text-cream/45">
-                    {p.price ? `AED ${p.price}` : "No price"}
-                    {p.is_active === false && <span className="text-red-400/80"> · hidden product</span>}
-                  </p>
-                </div>
-                <div className="flex items-center shrink-0">
-                  <button
-                    onClick={() => move(i, -1)}
-                    disabled={i === 0}
-                    aria-label="Move up"
-                    className="px-2 py-1 text-cream/60 hover:text-gold disabled:opacity-25"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => move(i, 1)}
-                    disabled={i === items.length - 1}
-                    aria-label="Move down"
-                    className="px-2 py-1 text-cream/60 hover:text-gold disabled:opacity-25"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    onClick={() => removeProduct(p.id)}
-                    aria-label="Remove"
-                    className="px-2 py-1 text-red-400/80 hover:text-red-400"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="card-surface rounded-lg p-4 mb-5">
-        <h2 className="font-display text-lg text-gold mb-3">Add products</h2>
-
-        <form onSubmit={handleSearch} className="flex gap-2 mb-3">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search your products by name"
-            className="flex-1 min-w-0 rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
-          />
-          <button
-            type="submit"
-            disabled={searching || !query.trim()}
-            className="shrink-0 rounded-md bg-gold hover:bg-gold-bright text-ink font-semibold px-4 py-2 text-sm disabled:opacity-60"
-          >
-            {searching ? "…" : "Search"}
-          </button>
-        </form>
-
-        {searched && results.length === 0 && (
-          <p className="text-sm text-cream/50 mb-3">No products found for that search.</p>
-        )}
-        {results.length > 0 && (
-          <div className="space-y-2 mb-4 max-h-96 overflow-y-auto pr-1">
-            {results.map((p) => {
-              const added = inList(p.id);
-              return (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-2 rounded-md border border-gold/15 bg-ink-lighter px-2 py-2"
-                >
-                  <Thumb src={p.image_url} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-cream/90 line-clamp-2">{p.title}</p>
-                    <p className="text-[11px] text-cream/45">{p.price ? `AED ${p.price}` : "No price"}</p>
-                  </div>
-                  <button
-                    onClick={() => addProduct(p)}
-                    disabled={added}
-                    className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold ${
-                      added ? "bg-white/10 text-cream/40" : "bg-gold text-ink hover:bg-gold-bright"
-                    }`}
-                  >
-                    {added ? "Added" : "Add"}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="border-t border-gold/15 pt-3">
-          <label className="block text-xs text-cream/60 mb-1">
-            Or add several at once — paste ASINs or Amazon links, one per line. Any that aren&apos;t on your
-            site yet are fetched from Amazon with your affiliate link.
-          </label>
-          <textarea
-            rows={4}
-            value={asinText}
-            onChange={(e) => setAsinText(e.target.value)}
-            placeholder={"B0D1XXXXXX\nB0D2XXXXXX"}
-            className="w-full rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream font-mono focus:border-gold outline-none"
-          />
-          <button
-            type="button"
-            onClick={handleAddAsins}
-            disabled={!asinText.trim() || !!asinBusy}
-            className="mt-2 rounded-md border border-gold/40 text-gold hover:bg-gold/10 px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          >
-            {asinBusy || "Add these"}
-          </button>
-          {asinMessage && <p className="text-xs text-cream/60 mt-2 break-words">{asinMessage}</p>}
-        </div>
-      </div>
-    </div>
-  );
+export async function POST() {
+  if (!(await isAdminLoggedIn())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const summary = await runSyncWithGuaranteedLog();
+  return NextResponse.json(summary);
 }

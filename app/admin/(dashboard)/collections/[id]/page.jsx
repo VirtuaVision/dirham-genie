@@ -3,7 +3,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
 import slugify from "slugify";
 import { notifyDealAlertSubscribers } from "@/lib/notifyDealAlerts";
-import { notifyPushSubscribers } from "@/lib/pushNotify";
 import { autoPostNewProduct } from "@/lib/socialPost";
 import { autoGenerateAIImageForNewProduct } from "@/lib/aiImageGenerator";
 import { matchCategoryFromAmazon } from "@/lib/matchCategoryFromAmazon";
@@ -143,7 +142,6 @@ export async function POST(request) {
   }
 
   notifyDealAlertSubscribers(data);
-  notifyPushSubscribers(data);
   autoGenerateAIImageForNewProduct(data);
 
   const autoPostToSocial = body.autoPostToSocial === true;

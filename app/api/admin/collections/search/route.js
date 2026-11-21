@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
 
-const FIELDS = "id, title, image_url, price, brand, asin, is_active";
+const FIELDS = "id, title, image_url, price, brand, asin, is_active, category_id";
 
 // Used by the collection editor to find products to add.
 //   ?q=word          -> search product titles

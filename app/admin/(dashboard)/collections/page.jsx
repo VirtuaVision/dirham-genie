@@ -11,6 +11,7 @@ export default function CollectionsPage() {
   const [title, setTitle] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -51,8 +52,26 @@ export default function CollectionsPage() {
   }
 
   async function handleDelete(c) {
-    if (!confirm(`Delete the page "${c.title}"? The products themselves are not deleted.`)) return;
-    await fetch(`/api/admin/collections/${c.id}`, { method: "DELETE" });
+    if (
+      !confirm(
+        `Delete the page "${c.title}"?\n\nIts products are NOT deleted — they stay on your main site in their categories. Any without a category are sorted automatically first.`
+      )
+    )
+      return;
+    setNotice(null);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/collections/${c.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      let msg = `"${c.title}" deleted. Its ${c.product_count} product${c.product_count === 1 ? "" : "s"} stay on your main site.`;
+      if (json.sorted > 0) msg += ` ${json.sorted} that had no category ${json.sorted === 1 ? "was" : "were"} sorted into categories.`;
+      if (json.unsure > 0)
+        msg += ` ${json.unsure} couldn't be sorted automatically — set their category in All Products.`;
+      setNotice(msg);
+    } catch (err) {
+      setError(err.message);
+    }
     load();
   }
 
@@ -63,6 +82,12 @@ export default function CollectionsPage() {
         Make your own pages — like &ldquo;Ramadan Deals&rdquo; or &ldquo;Under AED 50&rdquo; — and choose
         exactly which products appear on each one. You can change the products any time.
       </p>
+
+      {notice && (
+        <p className="text-sm text-deal-green bg-deal-green/10 border border-deal-green/30 rounded-md px-3 py-2 mb-4">
+          {notice}
+        </p>
+      )}
 
       <form onSubmit={handleCreate} className="card-surface rounded-lg p-4 mb-6">
         <label className="block text-xs text-cream/60 mb-1">New page title</label>

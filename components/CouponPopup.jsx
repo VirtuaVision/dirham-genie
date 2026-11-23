@@ -2,19 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-// The site-wide codes are the same for every product, so fetch them once and
-// reuse the result across cards instead of hitting the API on every tap.
-let cachedCodes = null;
-let cachedAt = 0;
-const CACHE_MS = 60 * 1000;
-
+// Always fetch the codes fresh when the popup opens, so a code you just
+// added, edited or deleted in the admin shows up right away.
 async function loadCodes() {
-  if (cachedCodes && Date.now() - cachedAt < CACHE_MS) return cachedCodes;
-  const res = await fetch("/api/popup-coupons");
+  const res = await fetch("/api/popup-coupons", { cache: "no-store" });
   const json = await res.json();
-  cachedCodes = json.codes || [];
-  cachedAt = Date.now();
-  return cachedCodes;
+  return json.codes || [];
 }
 
 async function copyText(text) {

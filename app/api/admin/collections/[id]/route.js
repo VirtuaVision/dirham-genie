@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import slugify from "slugify";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isAdminLoggedIn } from "@/lib/auth";
+import { categorizeUncategorised } from "@/lib/matchCategoryFromAmazon";
 
 export async function GET(request, { params }) {
   if (!(await isAdminLoggedIn())) {
@@ -19,7 +20,7 @@ export async function GET(request, { params }) {
   if (ids.length > 0) {
     const { data } = await supabaseAdmin
       .from("products")
-      .select("id, title, image_url, price, brand, asin, is_active")
+      .select("id, title, image_url, price, brand, asin, is_active, category_id")
       .in("id", ids);
     const byId = new Map((data || []).map((p) => [String(p.id), p]));
     products = ids.map((id) => byId.get(String(id))).filter(Boolean);
@@ -69,11 +70,29 @@ export async function PUT(request, { params }) {
   return NextResponse.json({ collection: data });
 }
 
+// Deleting a collection page removes ONLY the page. Its products are never
+// deleted — they stay on the main site. Before the page goes, any of its
+// products that have no category are sorted into one, so they show up under
+// the right category on the main site instead of floating uncategorised.
 export async function DELETE(request, { params }) {
   if (!(await isAdminLoggedIn())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { data: collection } = await supabaseAdmin
+    .from("collections")
+    .select("product_ids")
+    .eq("id", params.id)
+    .maybeSingle();
+
+  let sorted = { updated: 0, unsure: 0 };
+  try {
+    sorted = await categorizeUncategorised(collection?.product_ids || []);
+  } catch {
+    // Never let a sorting hiccup stop the page from being deleted.
+  }
+
   const { error } = await supabaseAdmin.from("collections").delete().eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, sorted: sorted.updated, unsure: sorted.unsure });
 }

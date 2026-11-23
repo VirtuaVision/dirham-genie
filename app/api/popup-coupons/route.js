@@ -6,7 +6,8 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 // showed up. This makes it query the database on every request instead.
 export const dynamic = "force-dynamic";
 
-// Public: the active site-wide codes shown in the lamp popup.
+// Public: the active site-wide codes shown in the lamp popup. Never cached,
+// so a code you add, edit or delete in the admin shows up on the very next tap.
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("popup_coupon_codes")
@@ -19,6 +20,6 @@ export async function GET() {
 
   return NextResponse.json(
     { codes: data || [] },
-    { headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" } }
+    { headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }

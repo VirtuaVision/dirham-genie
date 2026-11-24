@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 // Always fetch the codes fresh when the popup opens, so a code you just
 // added, edited or deleted in the admin shows up right away.
 async function loadCodes() {
-  const res = await fetch("/api/popup-coupons", { cache: "no-store" });
+  // The changing ?t= makes every request unique, so no cache can reuse an old answer.
+  const res = await fetch(`/api/popup-coupons?t=${Date.now()}`, { cache: "no-store" });
   const json = await res.json();
   return json.codes || [];
 }

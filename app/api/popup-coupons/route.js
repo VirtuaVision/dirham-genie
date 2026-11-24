@@ -5,6 +5,9 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 // keeps serving that frozen result — which is why codes added later never
 // showed up. This makes it query the database on every request instead.
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+// Also stops Next.js from reusing an earlier database answer for this route.
+export const fetchCache = "force-no-store";
 
 // Public: the active site-wide codes shown in the lamp popup. Never cached,
 // so a code you add, edit or delete in the admin shows up on the very next tap.

@@ -3,7 +3,7 @@ import { isAdminLoggedIn } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { fetchProductsByAsins, chunkArray } from "@/lib/amazon";
 import slugify from "slugify";
-import { matchCategoryFromAmazon } from "@/lib/matchCategoryFromAmazon";
+import { matchCategoryFromAmazon, pickCategoryId } from "@/lib/matchCategoryFromAmazon";
 
 function extractAsin(input) {
   const trimmed = input.trim();
@@ -55,7 +55,7 @@ export async function POST(request) {
   // batch coupon code, it's added to any of them that don't have a code yet.
   const { data: existingProducts } = await supabaseAdmin
     .from("products")
-    .select("id, asin, coupon_code, is_active")
+    .select("id, asin, title, amazon_category, category_id, coupon_code, is_active")
     .in("asin", asins);
   const existingAsins = new Set((existingProducts || []).map((p) => p.asin));
   const newAsins = asins.filter((a) => !existingAsins.has(a));
@@ -76,9 +76,22 @@ export async function POST(request) {
     (byAsin.get(asin) || []).forEach((p) => toBump.push(p));
   });
 
+  // Category choice from the import page:
+  //   a category id -> put everything in that category
+  //   "auto" / nothing -> sort by Amazon's category and the product name
+  //   "none"        -> leave uncategorised
+  const chosenCategory = category_id && category_id !== "auto" && category_id !== "none" ? category_id : null;
+  const wantsNone = category_id === "none";
+  let allCategories = [];
+  if (!chosenCategory && !wantsNone) {
+    const { data } = await supabaseAdmin.from("categories").select("id, name, slug");
+    allCategories = data || [];
+  }
+
   let movedToTop = 0;
   let couponAdded = 0;
   let hiddenMoved = 0;
+  let recategorised = 0;
   const baseTime = Date.now();
   const bumpErrors = [];
 
@@ -86,6 +99,15 @@ export async function POST(request) {
     await Promise.all(
       group.map(async ({ p, i }) => {
         const update = { created_at: new Date(baseTime + i).toISOString() };
+        // A category you picked is applied to products already on the site too.
+        // With auto-sort, only products that have no category yet get one.
+        let newCategory = null;
+        if (chosenCategory) {
+          if (p.category_id !== chosenCategory) newCategory = chosenCategory;
+        } else if (!wantsNone && !p.category_id) {
+          newCategory = pickCategoryId(allCategories, p.title, p.amazon_category);
+        }
+        if (newCategory) update.category_id = newCategory;
         const needsCode = batchCode && !(p.coupon_code || "").trim();
         if (needsCode) {
           update.coupon_code = batchCode;
@@ -97,6 +119,7 @@ export async function POST(request) {
           return;
         }
         movedToTop += 1;
+        if (newCategory) recategorised += 1;
         if (needsCode) couponAdded += 1;
         if (p.is_active === false) hiddenMoved += 1;
       })
@@ -115,7 +138,9 @@ export async function POST(request) {
           const slug = await uniqueSlug(item.title);
           // No category chosen? Work it out from what the product is.
           const resolvedCategoryId =
-            category_id || (await matchCategoryFromAmazon(item.amazon_category, item.title)) || null;
+            chosenCategory ||
+            (wantsNone ? null : await matchCategoryFromAmazon(item.amazon_category, item.title)) ||
+            null;
           const { error } = await supabaseAdmin.from("products").insert({
             title: item.title,
             slug,
@@ -156,6 +181,7 @@ export async function POST(request) {
     imported,
     skippedDuplicates: existingAsins.size,
     movedToTop,
+    recategorised,
     couponAdded,
     hiddenMoved,
     invalidLines: invalidCount,

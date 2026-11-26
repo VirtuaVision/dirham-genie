@@ -29,7 +29,7 @@ function parseCsv(text) {
 export default function BulkImportPage() {
   const [mode, setMode] = useState("manual");
   const [text, setText] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState("auto");
   const [categories, setCategories] = useState([]);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
@@ -41,20 +41,8 @@ export default function BulkImportPage() {
   useEffect(() => {
     fetch("/api/categories")
       .then((r) => r.json())
-      .then((json) => {
-        const cats = json.categories || [];
-        setCategories(cats);
-        const genie = cats.find((c) => c.slug === "genies-choice");
-        if (genie && mode === "manual") setCategoryId(genie.id);
-      });
+      .then((json) => setCategories(json.categories || []));
   }, []);
-
-  useEffect(() => {
-    if (mode === "manual") {
-      const genie = categories.find((c) => c.slug === "genies-choice");
-      if (genie) setCategoryId(genie.id);
-    }
-  }, [mode, categories]);
 
   function handleFile(e) {
     const file = e.target.files?.[0];
@@ -287,17 +275,27 @@ export default function BulkImportPage() {
         )}
 
         <div>
-          <label className="block text-xs text-cream/60 mb-1">Assign all to category (optional)</label>
+          <label className="block text-xs text-cream/60 mb-1">Category</label>
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             className="rounded-md bg-ink-lighter border border-gold/30 px-3 py-2 text-sm text-cream focus:border-gold outline-none"
           >
-            <option value="">Uncategorised</option>
+            <option value="auto">✨ Auto-sort into the right categories</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>Put all in: {c.name}</option>
             ))}
+            <option value="none">Leave uncategorised</option>
           </select>
+          <p className="text-[11px] text-cream/40 mt-1">
+            {categoryId === "auto"
+              ? mode === "amazon"
+                ? "Each product goes into the category that fits it, using Amazon's own category and the product name. Products already on your site that have no category get one too."
+                : "Each product goes into the category that fits its name. Products already on your site that have no category get one too."
+              : categoryId === "none"
+              ? "Nothing is put in a category."
+              : "Every product in this batch — including ones already on your site — is put in this category."}
+          </p>
         </div>
 
         {mode === "manual" && !previewRows ? (
@@ -336,6 +334,10 @@ export default function BulkImportPage() {
                 <p className="text-cream/60 mt-1">
                   {result.movedToTop} product{result.movedToTop === 1 ? " was" : "s were"} already on your
                   site — moved back to the top of the first page.
+                  {result.recategorised > 0 &&
+                    ` ${result.recategorised} ${result.recategorised === 1 ? "was" : "were"} put in ${
+                      categoryId === "auto" || categoryId === "none" ? "a category" : "the chosen category"
+                    }.`}
                   {result.couponAdded > 0 &&
                     ` Added your coupon code to ${result.couponAdded} that had none.`}
                 </p>
